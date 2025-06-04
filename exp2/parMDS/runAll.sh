@@ -1,7 +1,7 @@
 #!/bin/bash
-INPDIR=inputs
+INPDIR=../../inputs
 
-make
+# make
 
 # EXENAME=seqMDS
 
@@ -17,7 +17,7 @@ make
 
 #sort $OUTDIR/time.txt
 
-EXENAME=seqMDS_bfs
+EXENAME=seqMDS_one_route_each_time_var2
 
 OUTDIR=out$INPDIR$EXENAME`date +%d-%b-%Y-%H%M%S`
 mkdir -p $OUTDIR
