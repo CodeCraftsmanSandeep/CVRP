@@ -1,4 +1,4 @@
-g++ -O3 mySeqMDS.cpp -o mySeqMDS.out
+g++ -O3 seqMDS.cpp -o seqMDS.out (Rajesh's seqMDS code)
 
 /usrscratch/oth/rnintern/Sandeep/parMDS/inputs/E-n76-k8.vrp VALID solution minCost 864 TIME 0.496235 second
 /usrscratch/oth/rnintern/Sandeep/parMDS/inputs/P-n101-k4.vrp VALID solution minCost 866 TIME 0.57708 second
