@@ -1,0 +1,32 @@
+nvc++ -O3 -std=c++14 -acc=multicore  parMDS.cpp -o parMDS.out
+
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/E-n76-k8.vrp Cost 1017 906 823 Time(seconds) 0.00027816 0.000516288 0.000624427 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/P-n101-k4.vrp Cost 999 935 801 Time(seconds) 0.000428197 0.000691998 0.00149982 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/E-n101-k8.vrp Cost 1189 1067 933 Time(seconds) 0.000423992 0.00073256 0.000977701 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/E-n101-k14.vrp Cost 1519 1349 1264 Time(seconds) 0.000424138 0.000753812 0.00085796 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/F-n135-k7.vrp Cost 1430 1422 1293 Time(seconds) 0.000766502 0.00115582 0.00193384 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/CMT4.vrp Cost 1549 1337 1215 Time(seconds) 0.000808724 0.00129264 0.001644 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_14.vrp Cost 1806 1627 1350 Time(seconds) 0.00255129 0.00354136 0.00415587 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/CMT5.vrp Cost 1729 1673 1493 Time(seconds) 0.00114462 0.00178342 0.00213957 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_17.vrp Cost 959 912 803 Time(seconds) 0.00165162 0.00240227 0.00272085 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_9.vrp Cost 931 823 641 Time(seconds) 0.00194525 0.00267301 0.00401877 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_13.vrp Cost 1340 1251 1018 Time(seconds) 0.00125779 0.00205385 0.0024303 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/tai385.vrp Cost 32638 31121 29132 Time(seconds) 0.00474932 0.00614627 0.00736661 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_18.vrp Cost 1388 1295 1135 Time(seconds) 0.00236826 0.00330476 0.00373392 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_10.vrp Cost 1140 1050 826 Time(seconds) 0.00331724 0.0041888 0.0072861 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_19.vrp Cost 1901 1795 1573 Time(seconds) 0.00317608 0.00429553 0.00486682 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_11.vrp Cost 1450 1344 1034 Time(seconds) 0.00492289 0.00600636 0.0100496 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_15.vrp Cost 2208 2090 1700 Time(seconds) 0.00317238 0.00434486 0.00531883 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_20.vrp Cost 2506 2422 2101 Time(seconds) 0.00386602 0.00515673 0.00581313 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_12.vrp Cost 1838 1632 1251 Time(seconds) 0.00693561 0.008261 0.0130408 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Golden_16.vrp Cost 2694 2531 2098 Time(seconds) 0.00423717 0.00563483 0.0070587 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Leuven1.vrp Cost 224790 222847 210919 Time(seconds) 0.308067 0.317261 0.327086 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Leuven2.vrp Cost 147043 144514 127937 Time(seconds) 0.684244 0.695584 1.12326 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Antwerp1.vrp Cost 554690 550508 519191 Time(seconds) 1.17506 1.19386 1.22307 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Antwerp2.vrp Cost 371146 368364 331521 Time(seconds) 1.90025 1.92193 2.27135 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Ghent1.vrp Cost 539564 537302 508726 Time(seconds) 4.17902 4.21414 4.27842 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Ghent2.vrp Cost 329120 326117 293644 Time(seconds) 5.95895 5.99384 7.57736 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Brussels1.vrp Cost 596918 595351 553231 Time(seconds) 8.84177 8.90677 9.1436 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Brussels2.vrp Cost 442263 439352 394235 Time(seconds) 11.2433 11.3172 13.1714 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Flanders1.vrp Cost 8.10042e+06 8.09279e+06 7.7187e+06 Time(seconds) 17.909 18.0031 18.3516 parLimit 20 VALID
+/usrscratch/oth/rnintern/Sandeep/parMDS/inputs/Flanders2.vrp Cost 5.37138e+06 5.3484e+06 4.89864e+06 Time(seconds) 39.0627 39.1812 45.517 parLimit 20 VALID
