@@ -15,6 +15,7 @@
 #include <getopt.h>
 #include <cmath>
 #include <chrono>
+
 #define PI 3.1415926535897932384626433832795028841971693993751
 using namespace std;
 typedef tuple<double,unsigned,unsigned> order_tuple;

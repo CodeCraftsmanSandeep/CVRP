@@ -1,0 +1,7 @@
+Could not open the file "../inputs/Antwerp2.vrp"
+Could not open the file "../inputs/Ghent1.vrp"
+Could not open the file "../inputs/Ghent2.vrp"
+Could not open the file "../inputs/Brussels1.vrp"
+Could not open the file "../inputs/Brussels2.vrp"
+Could not open the file "../inputs/Flanders1.vrp"
+Could not open the file "../inputs/Flanders2.vrp"
