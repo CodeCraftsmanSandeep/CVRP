@@ -15,3 +15,6 @@
 - Cone stuff
 - Implementing on GPU using CUDA of seqMDS
     - different methods of iterating
+- Using better randome engine
+    - std::mt19937 engine(std::random_device{}());  // Mersenne Twister engine
+    - rand() is not thread safe
