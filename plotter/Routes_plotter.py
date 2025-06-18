@@ -30,17 +30,24 @@ def parse_vrp(filepath):
 
 def parse_sol(filepath):
     routes = []
-    pat = re.compile(r"Route #\d+:\s*(.*)")
+    cost = None
+    route_pat = re.compile(r"Route #\d+:\s*(.*)")
+    cost_pat = re.compile(r"Cost\s+(\d+(?:\.\d+)?)")
     with open(filepath) as f:
         for line in f:
-            m = pat.match(line.strip())
+            line = line.strip()
+            m = route_pat.match(line)
             if m:
                 nums = [int(x) for x in m.group(1).split() if x.isdigit()]
                 routes.append(nums)
-    return routes
+                continue
+            c = cost_pat.match(line)
+            if c:
+                cost = float(c.group(1))
+    return routes, cost
 
 
-def plot_static(coords, routes, depot_id, output_path):
+def plot_static(coords, routes, depot_id, output_path, cost):
     coords0 = {nid - 1: xy for nid, xy in coords.items()}
     depot0 = depot_id - 1 if depot_id is not None else None
 
@@ -57,13 +64,12 @@ def plot_static(coords, routes, depot_id, output_path):
     else:
         print(f"WARNING: Depot ID {depot_id} not found in coords.")
 
-    plt.title('Routes')
+    plt.title(f'Routes - Cost: {cost}')
     plt.xlabel('X Coordinate')
     plt.ylabel('Y Coordinate')
     plt.legend(fontsize=6)
     plt.grid(True, linestyle='--', linewidth=0.5)
     plt.axis('equal')
-    # plt.tight_layout(pad=2)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path, dpi=300)
@@ -71,8 +77,7 @@ def plot_static(coords, routes, depot_id, output_path):
     print(f"Saved static plot: {output_path}")
 
 
-def plot_interactive_html(coords, routes, depot_id, input_name):
-    # Generate HTML string with multi-select controls
+def plot_interactive_html(coords, routes, depot_id, input_name, cost, output_path):
     coords0 = {nid - 1: xy for nid, xy in coords.items()}
     depot0 = depot_id - 1 if depot_id is not None else None
     fig = go.Figure()
@@ -85,8 +90,12 @@ def plot_interactive_html(coords, routes, depot_id, input_name):
         x, y = coords0[depot0]
         fig.add_trace(go.Scatter(x=[x], y=[y], mode='markers', marker_symbol='star', marker_color='red', marker_size=12, name='Depot', visible=True))
 
+    # Add cost annotation
+    fig.update_layout(
+        title=f'Interactive Routes - {input_name} (Cost: {cost})'
+    )
+
     plot_html = fig.to_html(include_plotlyjs='cdn', full_html=False)
-    route_options = '\n'.join([f"<option value='{i}' selected>Route {i}</option>" for i in range(1, len(routes)+1)])
     html = f"""
 <html>
 <head>
@@ -94,38 +103,40 @@ def plot_interactive_html(coords, routes, depot_id, input_name):
   <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
 </head>
 <body>
-  <h2>CVRP Routes: {input_name}</h2>
-  <div>
-    <label for='route-select'>Select routes to display:</label><br>
-    <select id='route-select' multiple size='{min(len(routes), 10)}'>
-      {route_options}
-    </select>
-  </div>
-  <button id='apply-btn'>Apply Selection</button>
+  <h2>CVRP Routes: {input_name} (Cost: {cost})</h2>
   <div id='plot'>
     {plot_html}
   </div>
+  <label for='route-select'>Show Routes:</label>
+  <select id='route-select' multiple size='{max(3, len(routes))}'>
+    {''.join([f"<option value='{i}' selected>Route {i}</option>" for i in range(1, len(routes)+1)])}
+  </select>
+  <button id='apply-btn'>Apply</button>
   <script>
-    const traces = document.querySelectorAll('.js-plotly-plot')[0].data;
+    const plotDiv = document.querySelector('.js-plotly-plot');
     document.getElementById('apply-btn').onclick = function() {{
       const select = document.getElementById('route-select');
       const chosen = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
       const update = {{visible: []}};
+      const traces = plotDiv.data;
       traces.forEach(trace => {{
         if (trace.name === 'Depot') {{ update.visible.push(true); }}
         else {{ const num = parseInt(trace.name.split(' ')[1]); update.visible.push(chosen.includes(num)); }}
       }});
-      Plotly.update('plot', update);
+      Plotly.update(plotDiv, update);
     }};
   </script>
 </body>
 </html>
 """
-    return html
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, 'w') as f:
+        f.write(html)
+    print(f"Saved interactive HTML: {output_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Plot VRP routes either statically or interactively.")
+    parser = argparse.ArgumentParser(description="Plot VRP routes with cost.")
     parser.add_argument('--input', required=True, help='Directory with .vrp and .sol files')
     parser.add_argument('--output', required=True, help='Output directory for plots')
     parser.add_argument('--interactive', action='store_true', help='Generate interactive HTML plots')
@@ -139,26 +150,19 @@ def main():
             rel = os.path.relpath(vrp_path, args.input)
             base = os.path.splitext(rel)[0]
 
-            if args.interactive:
-                out_path = os.path.join(args.output, base + '_routes.html')
-            else:
-                out_path = os.path.join(args.output, base + '_routes.png')
-
             print(f"Processing {vrp_path}...")
             if not os.path.exists(sol_path):
                 print(f"ERROR: Missing solution file {sol_path}")
                 continue
 
             coords, depot_id = parse_vrp(vrp_path)
-            routes = parse_sol(sol_path)
+            routes, cost = parse_sol(sol_path)
             if args.interactive:
-                html = plot_interactive_html(coords, routes, depot_id, file)
-                os.makedirs(os.path.dirname(out_path), exist_ok=True)
-                with open(out_path, 'w') as f:
-                    f.write(html)
-                print(f"Saved interactive HTML: {out_path}")
+                out_path = os.path.join(args.output, base + '_routes.html')
+                plot_interactive_html(coords, routes, depot_id, file, cost, out_path)
             else:
-                plot_static(coords, routes, depot_id, out_path)
+                out_path = os.path.join(args.output, base + '_routes.png')
+                plot_static(coords, routes, depot_id, out_path, cost)
 
     print("All done.")
 

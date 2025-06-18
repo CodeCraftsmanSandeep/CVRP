@@ -9,3 +9,6 @@
 4️⃣ **Output:** The script saves plots as PNG images, preserving the input directory structure within the output directory.
 
 5️⃣ **Requirements:** Python 3, `matplotlib`, `argparse`, and standard Python libraries (`os`).
+
+Example way to use scripts:
+python Routes_plotter.py --input=../inputs/ --output=../plots/BKS_plots_html --interactive
