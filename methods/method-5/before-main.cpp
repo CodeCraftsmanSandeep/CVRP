@@ -5,53 +5,19 @@ class CommandLineArgs
 {
 public:
     std::string input_file_name;
-    double alpha; // This is in degrees, need not be a multiple of 360
-    int rho;
-    int lambda; // This is the number of iterations to run for each bucket
-    CommandLineArgs(const std::string& file_name, double _alpha, int _rho, int _lambda)
-        : input_file_name(file_name), alpha(_alpha), rho(_rho), lambda(_lambda) {}
 };
+
 
 class CommandLineArgs get_command_line_args(int argc, char* argv[])
 {
-    if(argc != 5)
+    if(argc != 2)
     {
-        HANDLE_ERROR(std::string("Usage: ") + argv[0] + " input_file_path --alpha=<alpha> --rho=<rho> --lambda=<lambda>");
+        HANDLE_ERROR(std::string("Usage: ./") + argv[0] + " input_file_path");
     }
-    std::string input_file_name = argv[1];
-    double alpha;
-    int rho;
-    int lambda;
-    for(int i = 2; i < argc; i++)
-    {
-        std::string arg = argv[i];
-        if(arg.find("--alpha=") == 0)
-        {
-            alpha = std::stod(arg.substr(8)); // Extract the value after "--alpha="
-        }
-        else if(arg.find("--rho=") == 0)
-        {
-            rho = std::stoi(arg.substr(6)); // Extract the value after "--rho="
-            if(rho <= 0)
-            {
-                HANDLE_ERROR("Rho must be a positive integer.");
-            }
-        }
-        else if(arg.find("--lambda=") == 0)
-        {
-            lambda = std::stoi(arg.substr(9)); // Extract the value after "--lambda="
-            if(lambda <= 0)
-            {
-                HANDLE_ERROR("Lambda must be a positive integer.");
-            }
-        }
-        else
-        {
-            HANDLE_ERROR("Unknown argument: " + arg);
-        }
-    }
-
-    return CommandLineArgs(input_file_name, alpha, rho, lambda);
+    struct CommandLineArgs command_line_args;
+    command_line_args.input_file_name = argv[1];
+    
+    return command_line_args;
 }
 
 class CVRP get_cvrp(class CommandLineArgs command_line_args)
@@ -92,12 +58,12 @@ public:
     ~Parameters() {}
 };
 
-Parameters get_tunable_parameters(const CommandLineArgs& command_line_args)
+Parameters get_tunable_parameters()
 {
     Parameters par;
-    par.set_alpha_in_degrees(command_line_args.alpha);  // 5, 10, 25, 50, 75
-    par.set_lambda(command_line_args.lambda);            // 1, 6, 12
-    par.set_rho(command_line_args.rho);                  // 1e3, 1e4
+    par.set_alpha_in_degrees(15);     // 5, 12, 25, 50, 75
+    par.set_lambda(12);                // 1, 6, 12
+    par.set_rho(1e2);
     return par;
 }
 
@@ -219,102 +185,6 @@ void construct_auxilary_graph(const CVRP& cvrp, const std::vector<node_t>& bucke
     return;
 }
 
-class Graph
-{
-public:
-    int num_nodes; // number of nodes in this graph
-    std::vector <std::vector <node_t>> adj;
-    // std::vector<weight_t> dist;
-
-    // Prim's algorithm to construct the MST
-    // Storing the distance values in array to save one more num_nodes^2
-    void construct_MST(const std::vector<node_t>& bucket, const CVRP& cvrp, int start_vertex = 0)
-    {
-        if(num_nodes == 1) return;
-
-        // Min heap based on weight
-        std::priority_queue<
-            std::pair<int, std::pair<int, weight_t>>, // {u_index, {v_index, weight}}
-            std::vector<std::pair<int, std::pair<int, weight_t>>>,
-            std::function<bool(const std::pair<int, std::pair<int, weight_t>>&,
-                            const std::pair<int, std::pair<int, weight_t>>&)>>
-            pq([](const std::pair<int, std::pair<int, weight_t>>& e1, const std::pair<int, std::pair<int, weight_t>>& e2) {
-                return e1.second.second > e2.second.second; 
-            });
-        
-        std::vector <bool> in_mst(num_nodes, false); // this can be removed and optimized, we should not create vectors each time you need
-        int dist_index = 0;
-
-        int u_index = start_vertex; // Start from the first node in the bucket
-        for(int v_index = 0; v_index < num_nodes; v_index++)
-        {
-            if(u_index == v_index) continue;
-            weight_t weight = cvrp.get_distance_on_the_fly(bucket[u_index], bucket[v_index]);
-            pq.push({u_index, {v_index, weight}}); // Push the edge to the priority queue
-        }
-
-        in_mst[u_index] = true; // Mark the first node as included in MST
-        int completed = 1;      // Number of nodes included in the MST
-
-        while(!pq.empty())
-        {
-            auto e = pq.top(); // min-weight edge
-            pq.pop();
-
-            int u_index = e.first;              // Index of the node in the bucket
-            int v_index = e.second.first;       // Index of the adjacent node in the bucket
-            weight_t weight = e.second.second;  // Weight of the edge
-            if(in_mst[v_index]) continue;       // Skip if already in MST
-            
-            in_mst[v_index] = true; // Mark this node as included in MST
-            completed++;
-
-            // Add the edge to the graph
-            node_t u = bucket[u_index]; // Get the actual node from the bucket
-            node_t v = bucket[v_index]; // Get the actual node from the bucket
-            adj[u_index].push_back(v_index ); // Add edge u -> v
-            adj[v_index].push_back(u_index); // Add edge v -> u (undirected graph)
-
-            int index = (num_nodes - 1) * u - (u * (u + 1)) / 2 + (v - u - 1);
-
-            for(int w_index = 0; w_index < v_index; w_index++)
-            {
-                if(in_mst[w_index]) continue;           // Skip already included nodes
-                weight_t weight = cvrp.get_distance_on_the_fly(v, bucket[w_index]); 
-                pq.push({v_index, {w_index, weight}});  // Push the edge to the min heap
-            }
-
-            dist_index = ((num_nodes) * v_index) - ((v_index * (v_index + 1)) >> 1);
-            for(int w_index = v_index + 1; w_index < num_nodes; w_index++)
-            {
-                weight_t weight = cvrp.get_distance_on_the_fly(v, bucket[w_index]);
-
-                if(in_mst[w_index]) continue;           // Skip already included nodes
-                pq.push({v_index, {w_index, weight}});  // Push the edge to the min heap
-            }
-        }
-
-        if(completed != num_nodes)
-        {
-            HANDLE_ERROR("Not all nodes are included in the MST! Completed: " + std::to_string(completed) + ", Expected: " + std::to_string(num_nodes));
-        }
-        return;
-    }
-
-    // Construct graph for the bucket
-    Graph(const std::vector<node_t>& bucket, const CVRP& cvrp, const Parameters& par, int mst_start_vertex  = 0)
-    {
-        num_nodes = bucket.size();
-        int size = (num_nodes * (num_nodes-1)) >> 1;
-        
-        adj.reserve(num_nodes);
-        adj.resize(num_nodes);
-
-        construct_MST(bucket, cvrp, mst_start_vertex);
-    }
-    ~Graph() {}
-};
-
 void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineArgs& command_line_args)
 {
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
@@ -325,6 +195,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     std::vector<std::vector<node_t>> buckets = make_partitions(par, cvrp);
 
     // For each bucket, construct auxiliary graph G 
+    std::vector<std::vector<std::vector<Edge>>> graph(buckets.size());
     std::random_device rd;
     std::mt19937 rng(rd());   // Initialize once
     // For each bucket, find the minimum possible routes
@@ -342,7 +213,9 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
         for(int _ = 1; _ <= par.lambda; _++)
         {
             // Construct auxilar graph
-            auto aux_graph = Graph(buckets[b], cvrp, par, distrib(rng));
+            {
+                construct_auxilary_graph(cvrp, buckets[b], graph[b], par, distrib(rng));
+            }
             // Explore in solution space
             {
                 // Search in solution space using randomization
@@ -351,7 +224,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     // i) Randomize adjacency list
                     for(int u = 0; u < num_nodes; u++)
                     {
-                        std::shuffle(aux_graph.adj[u].begin(), aux_graph.adj[u].end(), rng);
+                        std::shuffle(graph[b][u].begin(), graph[b][u].end(), rng);
                     }
 
                     // Step ii) Create routes
@@ -371,46 +244,43 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                         visited[depot] = true;
                         while(!rec.empty())
                         {
-                            auto top = rec.top();
-                            node_t u = top.first;
-                            int index = top.second;
-                            
-                            while(index < aux_graph.adj[u].size())
+                            auto [u, index] = rec.top();
+                            while(index < graph[b][u].size())
                             {
-                                int v = aux_graph.adj[u][index];
-                                if(!visited[v])
+                                Edge e = graph[b][u][index];
+                                if(!visited[e.v])
                                 {
-                                    if(residue_capacity >= cvrp.node[buckets[b][v]].demand)
+                                    if(residue_capacity >= cvrp.node[buckets[b][e.v]].demand)
                                     {
-                                        current_route.push_back(v);
-                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][v]);
-                                        residue_capacity -= cvrp.node[buckets[b][v]].demand;
-                                        prev_node = v;      // Update previous node to current vertex
+                                        current_route.push_back(e.v);
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][e.v]);
+                                        residue_capacity -= cvrp.node[buckets[b][e.v]].demand;
+                                        prev_node = e.v; // Update previous node to current vertex
                                     }else
                                     {
                                         covered += current_route.size(); // Count the number of nodes in the current route
                                         curr_routes.push_back(current_route);
-                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot);
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot); // Add cost to return to depot
                                         curr_total_cost += curr_route_cost;
                                         current_route.clear();
-                                        prev_node = depot;      // Reset previous node to depot
-                                        curr_route_cost = 0.0;  // Reset current route cost
+                                        prev_node = depot; // Reset previous node to depot
+                                        curr_route_cost = 0.0; // Reset current route cost
                                         residue_capacity = cvrp.capacity; // Reset residue capacity
                         
                                         // Start a new route
-                                        current_route.push_back(v);
-                                        residue_capacity -= cvrp.node[buckets[b][v]].demand;
-                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][v]);
-                                        prev_node = v;      // Update previous node to current vertex
+                                        current_route.push_back(e.v);
+                                        residue_capacity -= cvrp.node[buckets[b][e.v]].demand;
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][e.v]);
+                                        prev_node = e.v; // Update previous node to current vertex
                                     }
-                                    visited[v] = true;
-                                    rec.top().second = index + 1;   // Update index for next iteration
-                                    rec.push({v, 0});               // Push next vertex to stack
+                                    visited[e.v] = true;
+                                    rec.top().second = index + 1; // Update index for next iteration
+                                    rec.push({e.v, 0});           // Push next vertex to stack
                                     break;
                                 }
                                 index++;
                             }
-                            if(index == aux_graph.adj[u].size())
+                            if(index == graph[b][u].size())
                             {
                                 rec.pop(); // All neighbours of u are visited
                             }
@@ -421,7 +291,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                         { 
                             covered += current_route.size(); // Count the number of nodes in the last route
                             curr_routes.push_back(current_route);
-                            curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot);
+                            curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot); // Add cost to return to depot
                             curr_total_cost += curr_route_cost; // Add the cost of the last route
                         }
                     }
@@ -513,6 +383,6 @@ int main(int argc, char* argv[])
     OUTPUT_FILE << std::fixed << std::setprecision(2);
     auto command_line_args = get_command_line_args(argc, argv);
     auto cvrp = get_cvrp(command_line_args);
-    auto parameters = get_tunable_parameters(command_line_args);
+    auto parameters = get_tunable_parameters();
     run_our_method(cvrp, parameters, command_line_args);
 }

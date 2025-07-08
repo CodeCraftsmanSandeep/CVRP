@@ -87,3 +87,12 @@ clean:
 	rm -f $(METHOD1_OUT) $(METHOD2_OUT) $(METHOD3_OUT) \
 	      $(METHOD3_MT_OUT) $(METHOD4_OUT) $(METHOD5_OUT)
 
+# Method 5 (Multithreaded V1)
+METHOD5_MT_SRC = method-5-multithreaded-v1/main.cpp
+METHOD5_MT_OUT = method-5-multithreaded-v1/exe.out
+
+# Build rule
+method-5-multithreaded-v1: $(METHOD5_MT_OUT)
+
+$(METHOD5_MT_OUT): $(METHOD5_MT_SRC)
+	$(GCC_OMP) $(OMPFLAGS) $< -o $@

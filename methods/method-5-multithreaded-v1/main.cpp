@@ -1,5 +1,5 @@
-#include "vrp-single-threaded.h"
-#include "rajesh_codes-single-threaded.h"
+#include "vrp-multi-threaded.h"
+#include "rajesh_codes-multi-threaded.h"
 
 class CommandLineArgs
 {
@@ -103,6 +103,8 @@ Parameters get_tunable_parameters(const CommandLineArgs& command_line_args)
 
 std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const CVRP& cvrp)
 {
+    
+
     size_t N = cvrp.size;
     node_t depot = cvrp.depot;
 
@@ -317,6 +319,8 @@ public:
 
 void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineArgs& command_line_args)
 {
+    omp_set_nested(1); // Enable nested parallelism
+
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     size_t N = cvrp.size;
     node_t depot = cvrp.depot;
@@ -324,23 +328,23 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     // Make buckets
     std::vector<std::vector<node_t>> buckets = make_partitions(par, cvrp);
 
-    // For each bucket, construct auxiliary graph G 
-    std::random_device rd;
-    std::mt19937 rng(rd());   // Initialize once
-    // For each bucket, find the minimum possible routes
-
     weight_t final_cost =  0.0;
     std::vector<std::vector<int>> final_routes;
+    #pragma omp parallel for 
     for(int b = 0; b < buckets.size(); b++)
     {
         weight_t min_cost = INT_MAX; // taking INT_MAX as infinity
         std::vector <std::vector<int>> min_routes;
-        int num_nodes = buckets[b].size();
-        std::vector <bool> visited(num_nodes, false);
-        std::uniform_int_distribution<> distrib(0, num_nodes - 1);
+        const int num_nodes = buckets[b].size();
 
+        #pragma omp parallel for
         for(int _ = 1; _ <= par.lambda; _++)
         {
+            std::random_device rd;
+            std::mt19937 rng(rd());   // Initialize once
+            std::vector <bool> visited(num_nodes, false);
+            std::uniform_int_distribution<> distrib(0, num_nodes - 1);
+
             // Construct auxilar graph
             auto aux_graph = Graph(buckets[b], cvrp, par, distrib(rng));
             // Explore in solution space
@@ -375,6 +379,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                             node_t u = top.first;
                             int index = top.second;
                             
+                            // Explore neighbours of u
                             while(index < aux_graph.adj[u].size())
                             {
                                 int v = aux_graph.adj[u][index];
@@ -430,26 +435,34 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     {
                         HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
                     }
+
                     // Step iii) Update the running total cost
-                    if(curr_total_cost < min_cost)
+                    #pragma omp critical
                     {
-                        min_cost = curr_total_cost;
-                        min_routes = curr_routes; // Update the best routes found so far
+                        if(curr_total_cost < min_cost)
+                        {
+                            min_cost = curr_total_cost;
+                            min_routes = curr_routes; // Update the best routes found so far
+                        }
                     }
+
                 }
             }
         }
 
         if(min_routes.size() != 0)
         {
-            final_cost += min_cost;
-            for(auto& route: min_routes)
+            #pragma omp ciritical
             {
-                for(int i = 0; i < route.size(); i++)
+                final_cost += min_cost;
+                for(auto& route: min_routes)
                 {
-                    route[i] = buckets[b][route[i]];
+                    for(int i = 0; i < route.size(); i++)
+                    {
+                        route[i] = buckets[b][route[i]];
+                    }
+                    final_routes.push_back(route);
                 }
-                final_routes.push_back(route);
             }
         }else{
             // This is case where ther are no vertices in the bucket other than depot

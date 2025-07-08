@@ -7,6 +7,8 @@ public:
     std::string input_file_name;
     double alpha;
     int rho;
+    CommandLineArgs(const std::string& file_name, double _alpha, int _rho)
+        : input_file_name(file_name), alpha(_alpha), rho(_rho) {}
 };
 
 
@@ -14,14 +16,31 @@ class CommandLineArgs get_command_line_args(int argc, char* argv[])
 {
     if(argc != 4)
     {
-        HANDLE_ERROR(std::string("Usage: ./") + argv[0] + " input_file_path alpha rho");
+        HANDLE_ERROR(std::string("Usage: ") + argv[0] + " input_file_path --alpha=<alpha> --rho=<rho>");
     }
-    struct CommandLineArgs command_line_args;
-    command_line_args.input_file_name = argv[1];
-    command_line_args.alpha = std::stod(argv[2]);
-    command_line_args.rho = std::stoi(argv[3]);
-    
-    return command_line_args;
+    std::string input_file_name = argv[1];
+    if(input_file_name.empty()) HANDLE_ERROR("Input file name cannot be empty.");
+
+    double alpha;
+    int rho;
+    for(int i = 2; i < argc; i++)
+    {
+        std::string arg = argv[i];
+        if(arg.find("--alpha=") == 0)
+        {
+            alpha = std::stod(arg.substr(8)); // Extract the value after "--alpha="
+            if(alpha <= 0 || alpha >= 360) HANDLE_ERROR("Alpha must be in the range (0, 360).");
+        }
+        else if(arg.find("--rho=") == 0)
+        {
+            rho = std::stoi(arg.substr(6)); // Extract the value after "--rho="
+            if(rho <= 0) HANDLE_ERROR("Rho must be a positive integer.");
+        }
+        else HANDLE_ERROR("Unknown argument: " + arg);
+    }
+
+    // Create and return the CommandLineArgs object
+    return CommandLineArgs(input_file_name, alpha, rho);
 }
 
 class CVRP get_cvrp(class CommandLineArgs command_line_args)
@@ -132,7 +151,7 @@ public:
 
     // Prim's algorithm to construct the MST
     // Storing the distance values in array to save one more num_nodes^2
-    void construct_MST(const std::vector<node_t>& bucket, const CVRP& cvrp)
+    void construct_MST(const std::vector<node_t>& bucket, const CVRP& cvrp, int start_vertex = 0)
     {
         if(num_nodes == 1) return;
 
@@ -149,17 +168,16 @@ public:
         std::vector <bool> in_mst(num_nodes, false); // this can be removed and optimized, we should not create vectors each time you need
         int dist_index = 0;
 
-        int u_index = 0; // Start from the first node in the bucket
+        int u_index = start_vertex; // Start from the first node in the bucket
         for(int v_index = 0; v_index < num_nodes; v_index++)
         {
             if(u_index == v_index) continue;
             weight_t weight = dist[dist_index++] = cvrp.get_distance_on_the_fly(bucket[u_index], bucket[v_index]);
-            // std::cout << "edge: " << 0 << " -> " << bucket[v_index] << " with weight: " << weight << " dist_index: " << dist_index - 1 << "\n";
             pq.push({u_index, {v_index, weight}}); // Push the edge to the priority queue
         }
 
         in_mst[u_index] = true; // Mark the first node as included in MST
-        int completed = 1; // Number of nodes included in the MST
+        int completed = 1;      // Number of nodes included in the MST
 
         while(!pq.empty())
         {
@@ -193,7 +211,6 @@ public:
             for(int w_index = v_index + 1; w_index < num_nodes; w_index++)
             {
                 weight_t weight = dist[dist_index++] = cvrp.get_distance_on_the_fly(v, bucket[w_index]);
-                // std::cout << "edge: " << v << " -> " << bucket[w_index] << " (v_index, w_index): " << v_index << " " << w_index << " with weight: " << weight << " dist_index: " << dist_index - 1 << "\n";
 
                 if(in_mst[w_index]) continue;           // Skip already included nodes
                 pq.push({v_index, {w_index, weight}});  // Push the edge to the min heap
@@ -208,7 +225,7 @@ public:
     }
 
     // Construct graph for the bucket
-    Graph(const std::vector<node_t>& bucket, const CVRP& cvrp, const Parameters& par)
+    Graph(const std::vector<node_t>& bucket, const CVRP& cvrp, const Parameters& par, int mst_start_vertex  = 0)
     {
         num_nodes = bucket.size();
         int size = (num_nodes * (num_nodes-1)) >> 1;
@@ -218,7 +235,7 @@ public:
         adj.reserve(num_nodes);
         adj.resize(num_nodes);
 
-        construct_MST(bucket, cvrp);
+        construct_MST(bucket, cvrp, mst_start_vertex);
     }
     ~Graph() {}
 
@@ -435,8 +452,6 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
 
     OUTPUT_FILE << "----------------------------------------------\n";
 }
-
-
 
 int main(int argc, char* argv[])
 {
