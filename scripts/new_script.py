@@ -5,7 +5,6 @@ import sys
 import csv
 import itertools
 
-
 def parse_arg_list(arg_str):
     """
     Parse a string of the form "{a,b,c}" or "a,b,c" into a Python list.
@@ -41,20 +40,20 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
         os.makedirs(comb_output_dir, exist_ok=True)
 
         acc_file = os.path.join(comb_output_dir, 'accumulated_results.csv')
-        # Write header to match solver output
-        with open(acc_file, 'w', newline='') as csvf:
-            writer = csv.writer(csvf)
-            writer.writerow(['file-name', 'time_till_loop', 'total_elapsed_time', 'minCost', 'correctness'])
+        # Collect all rows before writing
+        rows = []
 
         for root, dirs, files in os.walk(input_dir):
+            dirs.sort()
+            files.sort()
             for file in files:
                 if not file.endswith('.vrp'):
                     continue
                 vrp_path = os.path.join(root, file)
-                rel_dir = os.path.relpath(root, input_dir)
                 base_name = os.path.splitext(file)[0]
 
                 # Define output subdirectory
+                rel_dir = os.path.relpath(root, input_dir)
                 if rel_dir in ('.', os.curdir):
                     out_subdir = os.path.join(comb_output_dir, base_name)
                 else:
@@ -71,7 +70,7 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                     print(f"Error on {vrp_path} with args {named_args}: {e}", file=sys.stderr)
                     continue
 
-                # Parse and append results
+                # Parse solver output
                 try:
                     subprocess.run([
                         sys.executable, 'output_parser.py',
@@ -93,12 +92,20 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                         total_time = parts[2] if len(parts) > 2 else ''
                         min_cost = parts[3] if len(parts) > 3 else ''
                         correctness = parts[4] if len(parts) > 4 else ''
-                        with open(acc_file, 'a', newline='') as csvf:
-                            csv.writer(csvf).writerow([file_col, time_loop, total_time, min_cost, correctness])
+                        rows.append([file_col, time_loop, total_time, min_cost, correctness])
                     else:
                         print(f"Warning: {parsed_sol} has <2 lines", file=sys.stderr)
                 else:
                     print(f"Missing parsed sol: {parsed_sol}", file=sys.stderr)
+
+        # After walking all files, sort rows by file-name
+        rows.sort(key=lambda r: r[0])
+
+        # Write header + sorted rows
+        with open(acc_file, 'w', newline='') as csvf:
+            writer = csv.writer(csvf)
+            writer.writerow(['file-name', 'time_till_loop', 'total_elapsed_time', 'minCost', 'correctness'])
+            writer.writerows(rows)
 
 
 def main():
