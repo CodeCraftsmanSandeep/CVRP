@@ -1,0 +1,60 @@
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1
+INVALID Arguments!
+Usage:./parMDS.out toy.vrp -nthreads 20 -round 1

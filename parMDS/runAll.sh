@@ -1,7 +1,6 @@
 #!/bin/bash
 INPDIR=inputs
 
-make
 
 EXENAME=seqMDS
 

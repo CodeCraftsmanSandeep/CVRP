@@ -11,6 +11,16 @@ Customers: 1 to size-1 inclusive
 #include <cstring>
 #include <iomanip>
 #include <sstream>  //stringstream
+#include <random>
+#include <algorithm>
+#include <stack>
+#include <cfloat>
+#include <queue>
+#include <chrono>  //timing CPU
+#include <omp.h>
+#include <functional>
+#include <climits>
+
 
 // Error handling
 #define ERROR_FILE std::cerr
@@ -25,12 +35,15 @@ Customers: 1 to size-1 inclusive
 // Output file
 #define OUTPUT_FILE std::cout
 
+// Constants
+constexpr double PI = 3.14159265358979323846;
+
 // Types
 using cord_t = double;       // Type for x and y co-ordinates
 using weight_t = double;     // Type of weight between two 
 using demand_t = double;
 using capacity_t = double;
-using node_t = int32;
+using node_t = int32_t;
 
 // Point in the 2-D plane: (customer (or) depot)
 class Point
@@ -53,11 +66,27 @@ public:
     size_t size;
     std::vector <Point> node;
     std::string type;
+    const node_t depot = 0; // this is must
+    std::vector<weight_t> dist; // distance matrix
 
-    CVRP (const std::string filename) {};
+    CVRP (const std::string filename);
     void print ();
+    double get_distance_on_the_fly(node_t, node_t) const;
     ~CVRP () {}
 };
+
+weight_t CVRP::get_distance_on_the_fly(node_t u, node_t v) const
+{
+  if (u < 0 || u >= size || v < 0 || v >= size) {
+    HANDLE_ERROR("Node index out of bounds");
+  }
+  if (u == v) {
+    return 0.0; // Distance to itself is zero
+  }
+
+  // Euclidian distance calculating on the fly
+  return sqrt((node[u].x - node[v].x) * (node[u].x - node[v].x) + (node[u].y - node[v].y) * (node[u].y - node[v].y));
+}
 
 CVRP::CVRP(const std::string filename)
 {
@@ -134,7 +163,104 @@ void CVRP::print()
 {
     OUTPUT_FILE << "SIZE: " << size << "\n";
     OUTPUT_FILE << "Capacity: " << capacity << "\n";
+    OUTPUT_FILE << std::setw(6) << "NODE" 
+                << std::setw(10) << "X"  
+                << std::setw(10) << "Y" 
+                << std::setw(10) << "DEMAND" << "\n";
+
     for (size_t i = 0; i < size; ++i) {
-        OUTPUT_FILE << i << ':' << std::setw(6) << node[i].x << ' ' << std::setw(6) << node[i].y << ' ' << std::setw(6) << node[i].demand << std::endl;
+        OUTPUT_FILE << std::setw(6) << i
+                    << std::setw(10) << node[i].x 
+                    << std::setw(10) << node[i].y 
+                    << std::setw(10) << node[i].demand 
+                    << "\n";
+    }
+    return;
+}
+
+
+// Print in DIMACS output format http://dimacs.rutgers.edu/programs/challenge/vrp/cvrp/
+// Depot is 0
+// Route #1: 1 2 3
+// Route #2: 4 5
+// ...
+// Route #k: n-1 n
+//
+void print_routes(const std::vector<std::vector<node_t>> &final_routes, const weight_t final_cost) 
+{
+
+  for (unsigned ii = 0; ii < final_routes.size(); ++ii) {
+    OUTPUT_FILE << "Route #" << ii + 1 << ":";
+    for (unsigned jj = 0; jj < final_routes[ii].size(); ++jj) {
+      OUTPUT_FILE << " " << final_routes[ii][jj];
+    }
+    OUTPUT_FILE << '\n';
+  }
+
+  OUTPUT_FILE << "Cost " << final_cost << std::endl;
+}
+
+class Edge
+{
+public:
+    node_t v;
+    weight_t w;
+
+    Edge(node_t _v, weight_t _w): v(_v), w(_w) {}
+};
+
+void print_graph(const std::vector<std::vector<Edge>>& G)
+{
+    for(node_t u = 0; u < G.size(); u++)
+    {
+        OUTPUT_FILE << "Node " << u << ": ";
+        for(const auto& e : G[u])
+        {
+            OUTPUT_FILE << "(" << e.v << ", " << e.w << ") ";
+        }
+        OUTPUT_FILE << "\n";
     }
 }
+
+class Vector {
+public:
+    cord_t x, y; // x i + y j vector in 2-D plane
+    Vector() : x(0), y(0) {} // Default constructor for a zero vector
+    Vector(cord_t _x, cord_t _y) : x(_x), y(_y) {} // Constructor for a vector with given coordinates
+    // Constructor: Vector pointing towards (x2, y2) from (x1, y1)
+    Vector(cord_t x1, cord_t y1, cord_t x2, cord_t y2) {
+        x = x2 - x1;
+        y = y2 - y1;
+    }
+
+    // Constructor: new vector by rotating vector `v` by `theta` radians
+    Vector(const Vector& v, cord_t theta_rad) {
+        x = v.x * std::cos(theta_rad) - v.y * std::sin(theta_rad);
+        y = v.x * std::sin(theta_rad) + v.y * std::cos(theta_rad);
+    }
+
+    // For checking whether this vector is in between two given vectors
+    bool is_in_between(const Vector& vec1, const Vector& vec2) const 
+    {
+        // Compute cross products
+        cord_t cross12 = vec1.x * vec2.y - vec1.y * vec2.x; // vec1 × vec2
+        cord_t cross1p = vec1.x * y - vec1.y * x; // vec1 × vecp
+        cord_t crossp2 = x * vec2.y - y * vec2.x; // vecp × vec2
+        if (cross12 == 0) {
+            // vec1 and vec2 are collinear
+            if (vec1.x * vec2.x + vec1.y * vec2.y >= 0) { // Same direction or one is zero vector
+                // If vecp is also collinear with them, and in the same general direction:
+                return cross1p == 0 && (vec1.x * x + vec1.y * y >= 0); // Check if vecp is also in the same direction as vec1
+            } else { // Opposite directions (180 degrees apart)
+                // ambigious case
+                return cross1p <= 0 && crossp2 <= 0; 
+            }
+        }
+
+        if (cross12 > 0) {
+          return cross1p >= 0 && crossp2 >= 0;  // vecp lies between vec1 and vec2 (angle < 180°)
+        } else {
+          return cross1p <= 0 && crossp2 <= 0;  // reflex angle case   
+        }
+    }
+};

@@ -636,7 +636,7 @@ postProcessIt(const VRP &vrp, std::vector<std::vector<node_t>> &final_routes, we
       postprocessed_final_routes.push_back(postprocessed_route3);
     }
   }
-    auto postprocessed_final_routes_cost = get_total_cost_of_routes(vrp, postprocessed_final_routes);
+  auto postprocessed_final_routes_cost = get_total_cost_of_routes(vrp, postprocessed_final_routes);
 
   minCost = postprocessed_final_routes_cost;
 
