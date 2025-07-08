@@ -17,10 +17,11 @@ Customers: 1 to size-1 inclusive
 #include <cfloat>
 #include <queue>
 #include <chrono>  //timing CPU
-#include <omp.h>
 #include <functional>
 #include <climits>
+#include <omp.h>
 
+constexpr bool DEBUG_MODE = false; // Set to true for debugging
 
 // Error handling
 #define ERROR_FILE std::cerr
@@ -264,3 +265,20 @@ public:
         }
     }
 };
+
+weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vector<node_t>>& final_routes)
+{
+    weight_t total_cost = 0.0;
+    for(const auto& route : final_routes)
+    {
+        // if(route.empty()) continue; // Skip empty routes
+        weight_t curr_route_cost = cvrp.get_distance_on_the_fly(cvrp.depot, route[0]);
+        for(size_t j = 1; j < route.size(); ++j)
+        {
+            curr_route_cost += cvrp.get_distance_on_the_fly(route[j - 1], route[j]);
+        }
+        curr_route_cost += cvrp.get_distance_on_the_fly(route.back(), cvrp.depot);
+        total_cost += curr_route_cost;
+    }
+    return total_cost;
+}

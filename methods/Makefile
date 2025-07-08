@@ -19,8 +19,8 @@ METHOD3_SRC = method-3/main.cpp
 METHOD3_OUT = method-3/exe.out
 
 # Method 3 (Multithreaded)
-METHOD3_MT_SRC = method-3-multithreaded/main.cpp
-METHOD3_MT_OUT = method-3-multithreaded/exe.out
+METHOD3_MT_SRC = method-3-multithreaded-v1/main.cpp
+METHOD3_MT_OUT = method-3-multithreaded-v1/exe.out
 
 # Method 4
 METHOD4_SRC = method-4/main.cpp
@@ -31,7 +31,7 @@ METHOD5_SRC = method-5/main.cpp
 METHOD5_OUT = method-5/exe.out
 
 # Default: build all methods
-all: method-1 method-2 method-3 method-3-multithreaded method-4 method-5
+all: method-1 method-2 method-3 method-3-multithreaded-v1 method-4 method-5
 
 # Method 1
 method-1: $(METHOD1_OUT)
@@ -49,7 +49,7 @@ $(METHOD3_OUT): $(METHOD3_SRC)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 # Method 3 (Multithreaded with OpenMP)
-method-3-multithreaded: $(METHOD3_MT_OUT)
+method-3-multithreaded-v1: $(METHOD3_MT_OUT)
 $(METHOD3_MT_OUT): $(METHOD3_MT_SRC)
 	$(GCC_OMP) $(OMPFLAGS) $< -o $@
 

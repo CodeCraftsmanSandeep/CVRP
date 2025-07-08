@@ -1,5 +1,5 @@
-#include "vrp.h"
-#include "rajesh_codes.h"
+#include "vrp-single-threaded.h"
+#include "rajesh_codes-single-threaded.h"
 
 class CommandLineArgs
 {
@@ -62,23 +62,6 @@ Parameters get_tunable_parameters(const CommandLineArgs& command_line_args)
     par.set_alpha_in_degrees(command_line_args.alpha);  // 5, 10, 25, 50, 75
     par.set_rho(command_line_args.rho);                 // 1e3, 1e4
     return par;
-}
-
-weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vector<node_t>>& final_routes)
-{
-    weight_t total_cost = 0.0;
-    for(const auto& route : final_routes)
-    {
-        if(route.empty()) continue; // Skip empty routes
-        weight_t curr_route_cost = cvrp.get_distance_on_the_fly(cvrp.depot, route[0]);
-        for(size_t j = 1; j < route.size(); ++j)
-        {
-            curr_route_cost += cvrp.get_distance_on_the_fly(route[j - 1], route[j]);
-        }
-        curr_route_cost += cvrp.get_distance_on_the_fly(route.back(), cvrp.depot);
-        total_cost += curr_route_cost;
-    }
-    return total_cost;
 }
 
 // You may look into (a + b - 1) / b in ceil when a and b are integers
@@ -385,27 +368,31 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
             final_cost += min_cost;
             for(auto& route: min_routes)
             {
-                auto renamed_route = route;
                 for(int i = 0; i < route.size(); i++)
                 {
-                    renamed_route[i] = buckets[b][route[i]];
+                    route[i] = buckets[b][route[i]];
                 }
-                final_routes.push_back(renamed_route);
+                final_routes.push_back(route);
             }
         }else{
             // This is case where ther are no vertices in the bucket other than depot
         }
     }
-    // {
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    //     OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
-    //     print_routes(final_routes, final_cost);
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    // }
-    if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
 
-        HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
+
+    if(DEBUG_MODE)
+    {
+        if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
+
+            HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
+        }
+
+        OUTPUT_FILE << "----------------------------------------------\n";
+        OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
+        print_routes(final_routes, final_cost);
+        OUTPUT_FILE << "----------------------------------------------\n";
     }
+
     double time_till_loop = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000.0;
     // Refining routes using optimizations
     {
@@ -425,12 +412,12 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
         }
     }
 
-    {
-        OUTPUT_FILE << "----------------------------------------------\n";
-        OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
-        print_routes(final_routes, final_cost);
-        OUTPUT_FILE << "----------------------------------------------\n";
-    }
+    // {
+    //     OUTPUT_FILE << "----------------------------------------------\n";
+    //     OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
+    //     print_routes(final_routes, final_cost);
+    //     OUTPUT_FILE << "----------------------------------------------\n";
+    // }
 
     OUTPUT_FILE << "----------------------------------------------\n";
     OUTPUT_FILE << "FINAL_OUTPUT:\n";

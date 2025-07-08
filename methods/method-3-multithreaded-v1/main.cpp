@@ -1,5 +1,5 @@
-#include "vrp.h"
-#include "rajesh_codes.h"
+#include "vrp-multi-threaded.h"
+#include "rajesh_codes-multi-threaded.h"
 
 class CommandLineArgs
 {
@@ -64,22 +64,6 @@ Parameters get_tunable_parameters(const CommandLineArgs& command_line_args)
     return par;
 }
 
-weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vector<node_t>>& final_routes)
-{
-    weight_t total_cost = 0.0;
-    for(const auto& route : final_routes)
-    {
-        if(route.empty()) continue; // Skip empty routes
-        weight_t curr_route_cost = cvrp.get_distance_on_the_fly(cvrp.depot, route[0]);
-        for(size_t j = 1; j < route.size(); ++j)
-        {
-            curr_route_cost += cvrp.get_distance_on_the_fly(route[j - 1], route[j]);
-        }
-        curr_route_cost += cvrp.get_distance_on_the_fly(route.back(), cvrp.depot);
-        total_cost += curr_route_cost;
-    }
-    return total_cost;
-}
 
 // You may look into (a + b - 1) / b in ceil when a and b are integers
 int my_ceil(double a, double b)
@@ -237,6 +221,7 @@ public:
 
         construct_MST(bucket, cvrp);
     }
+    Graph() {}
     ~Graph() {}
 
     weight_t get_distance_stored(node_t, node_t) const;
@@ -267,6 +252,8 @@ weight_t Graph::get_distance_stored(node_t u, node_t v) const
 
 void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineArgs& command_line_args)
 {
+    // omp_set_nested(1); // Enable nested parallelism
+
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     const size_t N = cvrp.size;
     node_t depot = cvrp.depot;
@@ -277,7 +264,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     // For each bucket, find the minimum possible routes
     weight_t final_cost =  0.0;
     std::vector<std::vector<int>> final_routes;
-    #pragma omp parallel for 
+    #pragma omp parallel for num_threads(buckets.size()) schedule(dynamic)
     for(int b = 0; b < buckets.size(); b++)
     {
         // #pragma omp critical
@@ -287,15 +274,18 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
         
         std::random_device rd;
         std::mt19937 rng(rd());  
-        auto aux_graph = Graph(buckets[b], cvrp, par);
+        Graph aux_graph (buckets[b], cvrp, par);
         
-
         weight_t min_cost = INT_MAX; // taking INT_MAX as infinity
         std::vector <std::vector<int>> min_routes;
         int num_nodes = buckets[b].size();
         std::vector <bool> visited(num_nodes, false);
 
         // Search in solution space using randomization
+        // You should enable open mp nested parallelsim
+        // You should check whether rng is thread safe
+        // do you want to use intel vectors which has thread psuh_back???
+        // #pragma omp parallel for private(aux_graph, visited)
         for(int iter = 1; iter <= par.rho; iter++)
         {
             // i) Randomize adjacency list
@@ -352,7 +342,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                             }
                             visited[v] = true;
                             rec.top().second = index + 1; // Update index for next iteration
-                            rec.push({v, 0});           // Push next vertex to stack
+                            rec.push({v, 0});             // Push next vertex to stack
                             break;
                         }
                         index++;
@@ -379,30 +369,28 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
             }
 
             // Step iii) Update the running total cost
-            if(curr_total_cost < min_cost)
+            // #pragma omp critical
             {
-                min_cost = curr_total_cost;
-                min_routes = curr_routes; // Update the best routes found so far
+                if(curr_total_cost < min_cost)
+                {
+                    min_cost = curr_total_cost;
+                    min_routes = curr_routes; // Update the best routes found so far
+                }
             }
+
         }
 
         if(min_routes.size() != 0)
         {
-
             #pragma omp critical
             {
                 final_cost += min_cost; // Update the final cost
-            }
-            for(auto& route: min_routes)
-            {
-                auto renamed_route = route;
-                for(int i = 0; i < route.size(); i++)
-                {
-                    renamed_route[i] = buckets[b][route[i]];
-                }
-                #pragma omp critical
-                {
-                    final_routes.push_back(renamed_route);
+                for(auto& route: min_routes){
+                    for(int i = 0; i < route.size(); i++)
+                    {
+                        route[i] = buckets[b][route[i]];
+                    }
+                    final_routes.push_back(route);
                 }
             }
         }else{

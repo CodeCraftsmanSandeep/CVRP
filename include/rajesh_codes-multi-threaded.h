@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vrp.h"
+#include "vrp-multi-threaded.h"
 
 void tsp_approx(const CVRP &vrp, std::vector<node_t> &cities, std::vector<node_t> &tour, node_t ncities) {
   node_t i, j;
@@ -153,24 +153,6 @@ postprocess_2OPT(const CVRP &vrp, const std::vector<std::vector<node_t>> &final_
     postprocessed_final_routes.push_back(curr_route);
   }
   return postprocessed_final_routes;
-}
-
-weight_t get_total_cost_of_routes(const CVRP &vrp, std::vector<std::vector<node_t>> &final_routes) {
-  weight_t total_cost = 0.0;
-  for (unsigned ii = 0; ii < final_routes.size(); ++ii) {
-    weight_t curr_route_cost = 0;
-
-    curr_route_cost += vrp.get_distance_on_the_fly(vrp.depot, final_routes[ii][0]);
-    for (unsigned jj = 1; jj < final_routes[ii].size(); ++jj) {
-      curr_route_cost += vrp.get_distance_on_the_fly(final_routes[ii][jj - 1], final_routes[ii][jj]);
-    }
-
-    curr_route_cost += vrp.get_distance_on_the_fly(vrp.depot, final_routes[ii][final_routes[ii].size() - 1]);
-
-    total_cost += curr_route_cost;
-  }
-
-  return total_cost;
 }
 
 //

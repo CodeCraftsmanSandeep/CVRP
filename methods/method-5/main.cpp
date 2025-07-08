@@ -1,5 +1,5 @@
-#include "vrp.h"
-#include "rajesh_codes.h"
+#include "vrp-single-threaded.h"
+#include "rajesh_codes-single-threaded.h"
 
 class CommandLineArgs
 {
@@ -67,64 +67,6 @@ Parameters get_tunable_parameters()
     return par;
 }
 
-class Vector {
-public:
-    cord_t x, y; // x i + y j vector in 2-D plane
-    Vector() : x(0), y(0) {} // Default constructor for a zero vector
-    Vector(cord_t _x, cord_t _y) : x(_x), y(_y) {} // Constructor for a vector with given coordinates
-    // Constructor: Vector pointing towards (x2, y2) from (x1, y1)
-    Vector(cord_t x1, cord_t y1, cord_t x2, cord_t y2) {
-        x = x2 - x1;
-        y = y2 - y1;
-    }
-
-    // Constructor: new vector by rotating vector `v` by `theta` radians
-    Vector(const Vector& v, cord_t theta_rad) {
-        x = v.x * std::cos(theta_rad) - v.y * std::sin(theta_rad);
-        y = v.x * std::sin(theta_rad) + v.y * std::cos(theta_rad);
-    }
-};
-
-bool is_in_between(const Vector& vec1, const Vector& vec2, const Vector& vecp) {
-    // Compute cross products
-    cord_t cross12 = vec1.x * vec2.y - vec1.y * vec2.x; // vec1 × vec2
-    cord_t cross1p = vec1.x * vecp.y - vec1.y * vecp.x; // vec1 × vecp
-    cord_t crossp2 = vecp.x * vec2.y - vecp.y * vec2.x; // vecp × vec2
-    if (cross12 == 0) {
-        // vec1 and vec2 are collinear
-        if (vec1.x * vec2.x + vec1.y * vec2.y >= 0) { // Same direction or one is zero vector
-            // If vecp is also collinear with them, and in the same general direction:
-            return cross1p == 0 && (vec1.x * vecp.x + vec1.y * vecp.y >= 0); // Check if vecp is also in the same direction as vec1
-        } else { // Opposite directions (180 degrees apart)
-        // ambiguis case
-            return cross1p <= 0 && crossp2 <= 0; // This is what the current code would do.
-        }
-    }
-
-    if (cross12 > 0) 
-        return cross1p >= 0 && crossp2 >= 0;  // vecp lies between vec1 and vec2 (angle < 180°)
-    else
-        return cross1p <= 0 && crossp2 <= 0;  // reflex angle case
-}
-
-weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vector<node_t>>& final_routes)
-{
-    weight_t total_cost = 0.0;
-    for(const auto& route : final_routes)
-    {
-        if(route.empty()) continue; // Skip empty routes
-        weight_t curr_route_cost = cvrp.get_distance(cvrp.depot, route[0]);
-        for(size_t j = 1; j < route.size(); ++j)
-        {
-            curr_route_cost += cvrp.get_distance(route[j - 1], route[j]);
-        }
-        curr_route_cost += cvrp.get_distance(route.back(), cvrp.depot);
-        total_cost += curr_route_cost;
-    }
-    return total_cost;
-}
-
-
 std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const CVRP& cvrp)
 {
     size_t N = cvrp.size;
@@ -159,7 +101,7 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
         // Find the bucket for this node
         for(int i = 0; i < num_partitions; i++)
         {
-            if(is_in_between(seperating_vectors[i], seperating_vectors[i + 1], vec))
+            if(vec.is_in_between(seperating_vectors[i], seperating_vectors[i + 1]))
             {
                 buckets[i].push_back(u);
                 // std::cout << "Node " << u << " is in bucket " << i << "\n";
@@ -202,7 +144,7 @@ void construct_auxilary_graph(const CVRP& cvrp, const std::vector<node_t>& bucke
     for(int v_index = 0; v_index < num_nodes; v_index++)
     {
         if(u_index == v_index) continue;
-        weight_t weight = cvrp.get_distance(bucket[u_index], bucket[v_index]);
+        weight_t weight = cvrp.get_distance_on_the_fly(bucket[u_index], bucket[v_index]);
         pq.push({u_index, {v_index, weight}}); // Push the edge to the priority queue
     }
     in_mst[u_index] = true; // Mark the first node as included in MST
@@ -231,7 +173,7 @@ void construct_auxilary_graph(const CVRP& cvrp, const std::vector<node_t>& bucke
         for(int w_index = 0; w_index < num_nodes; w_index++)
         {
             if(in_mst[w_index]) continue; // Skip already included nodes
-            weight_t weight = cvrp.get_distance(v, bucket[w_index]);
+            weight_t weight = cvrp.get_distance_on_the_fly(v, bucket[w_index]);
             pq.push({v_index, {w_index, weight}}); // Push the edge to the priority queue
         }
     }
@@ -245,6 +187,7 @@ void construct_auxilary_graph(const CVRP& cvrp, const std::vector<node_t>& bucke
 
 void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineArgs& command_line_args)
 {
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     size_t N = cvrp.size;
     node_t depot = cvrp.depot;
 
@@ -310,14 +253,14 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                                     if(residue_capacity >= cvrp.node[buckets[b][e.v]].demand)
                                     {
                                         current_route.push_back(e.v);
-                                        curr_route_cost += cvrp.get_distance(buckets[b][prev_node], buckets[b][e.v]);
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][e.v]);
                                         residue_capacity -= cvrp.node[buckets[b][e.v]].demand;
                                         prev_node = e.v; // Update previous node to current vertex
                                     }else
                                     {
                                         covered += current_route.size(); // Count the number of nodes in the current route
                                         curr_routes.push_back(current_route);
-                                        curr_route_cost += cvrp.get_distance(buckets[b][prev_node], depot); // Add cost to return to depot
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot); // Add cost to return to depot
                                         curr_total_cost += curr_route_cost;
                                         current_route.clear();
                                         prev_node = depot; // Reset previous node to depot
@@ -327,7 +270,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                                         // Start a new route
                                         current_route.push_back(e.v);
                                         residue_capacity -= cvrp.node[buckets[b][e.v]].demand;
-                                        curr_route_cost += cvrp.get_distance(buckets[b][prev_node], buckets[b][e.v]);
+                                        curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], buckets[b][e.v]);
                                         prev_node = e.v; // Update previous node to current vertex
                                     }
                                     visited[e.v] = true;
@@ -348,7 +291,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                         { 
                             covered += current_route.size(); // Count the number of nodes in the last route
                             curr_routes.push_back(current_route);
-                            curr_route_cost += cvrp.get_distance(buckets[b][prev_node], depot); // Add cost to return to depot
+                            curr_route_cost += cvrp.get_distance_on_the_fly(buckets[b][prev_node], depot); // Add cost to return to depot
                             curr_total_cost += curr_route_cost; // Add the cost of the last route
                         }
                     }
@@ -367,44 +310,47 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
             }
         }
 
-        // After exploring the solution space, we have the minimum cost and routes for this bucket
         if(min_routes.size() != 0)
         {
             final_cost += min_cost;
             for(auto& route: min_routes)
             {
-                auto renamed_route = route;
                 for(int i = 0; i < route.size(); i++)
                 {
-                    renamed_route[i] = buckets[b][route[i]];
+                    route[i] = buckets[b][route[i]];
                 }
-                final_routes.push_back(renamed_route);
+                final_routes.push_back(route);
             }
         }else{
             // This is case where ther are no vertices in the bucket other than depot
         }
     }
-    if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
-        HANDLE_ERROR("Final cost != calculated cost in loop");
+    if constexpr (DEBUG_MODE){
+        if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
+            HANDLE_ERROR("Final cost != calculated cost in loop");
+        }
+        // {
+        //     OUTPUT_FILE << "----------------------------------------------\n";
+        //     OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
+        //     print_routes(final_routes, final_cost);
+        //     OUTPUT_FILE << "----------------------------------------------\n";
+        // }
     }
-    {
-        OUTPUT_FILE << "----------------------------------------------\n";
-        OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
-        print_routes(final_routes, final_cost);
-        OUTPUT_FILE << "----------------------------------------------\n";
-    }
+    double time_till_loop = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000.0;
     // Refining routes using optimizations
     {
       // using rajesh code
-      final_routes = postProcessIt(cvrp, final_routes);
-      final_cost = get_total_cost_of_routes(cvrp, final_routes);   
+      final_routes = postProcessIt(cvrp, final_routes, final_cost);
     }
-    {
-        OUTPUT_FILE << "----------------------------------------------\n";
-        OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
-        print_routes(final_routes, final_cost);
-        OUTPUT_FILE << "----------------------------------------------\n";
-    }
+    auto end = std::chrono::high_resolution_clock::now();
+    double elapsed_time = std::chrono::duration<double>(end - start).count();
+
+    // {
+    //     OUTPUT_FILE << "----------------------------------------------\n";
+    //     OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
+    //     print_routes(final_routes, final_cost);
+    //     OUTPUT_FILE << "----------------------------------------------\n";
+    // }
 
     // Validate the solution
     {
@@ -417,9 +363,14 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     
     OUTPUT_FILE << "----------------------------------------------\n";
     OUTPUT_FILE << "FINAL_OUTPUT:\n";
-    OUTPUT_FILE << "file-name,minCost,correctness\n";
+    OUTPUT_FILE << "file-name,time_till_loop,total_elapsed_time,minCost,correctness\n";
 
-    OUTPUT_FILE << command_line_args.input_file_name << "," << final_cost << "," << "VALID\n";
+    OUTPUT_FILE << std::fixed << std::setprecision(6)
+                << command_line_args.input_file_name << ","
+                << time_till_loop << ","
+                << elapsed_time << ","
+                << final_cost << ","
+                << "VALID\n";
 
     // Print output
     print_routes(final_routes, final_cost);

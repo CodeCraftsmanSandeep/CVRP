@@ -1,5 +1,5 @@
-#include "vrp.h"
-#include "rajesh_codes.h"
+#include "vrp-single-threaded.h"
+#include "rajesh_codes-single-threaded.h"
 
 class CommandLineArgs
 {
@@ -66,62 +66,6 @@ Parameters get_tunable_parameters()
     return par;
 }
 
-class Vector {
-public:
-    cord_t x, y; // x i + y j vector in 2-D plane
-
-    // Constructor: Vector pointing towards (x2, y2) from (x1, y1)
-    Vector(cord_t x1, cord_t y1, cord_t x2, cord_t y2) {
-        x = x2 - x1;
-        y = y2 - y1;
-    }
-
-    // Constructor: new vector by rotating vector `v` by `theta` radians
-    Vector(const Vector& v, cord_t theta_rad) {
-        x = v.x * std::cos(theta_rad) - v.y * std::sin(theta_rad);
-        y = v.x * std::sin(theta_rad) + v.y * std::cos(theta_rad);
-    }
-};
-
-bool is_in_between(const Vector& vec1, const Vector& vec2, const Vector& vecp) {
-    // Compute cross products
-    cord_t cross12 = vec1.x * vec2.y - vec1.y * vec2.x; // vec1 × vec2
-    cord_t cross1p = vec1.x * vecp.y - vec1.y * vecp.x; // vec1 × vecp
-    cord_t crossp2 = vecp.x * vec2.y - vecp.y * vec2.x; // vecp × vec2
-    if (cross12 == 0) {
-        // vec1 and vec2 are collinear
-        if (vec1.x * vec2.x + vec1.y * vec2.y >= 0) { // Same direction or one is zero vector
-            // If vecp is also collinear with them, and in the same general direction:
-            return cross1p == 0 && (vec1.x * vecp.x + vec1.y * vecp.y >= 0); // Check if vecp is also in the same direction as vec1
-        } else { // Opposite directions (180 degrees apart)
-        // ambiguis case
-            return cross1p <= 0 && crossp2 <= 0; // This is what the current code would do.
-        }
-    }
-
-    if (cross12 > 0) 
-        return cross1p >= 0 && crossp2 >= 0;  // vecp lies between vec1 and vec2 (angle < 180°)
-    else
-        return cross1p <= 0 && crossp2 <= 0;  // reflex angle case
-}
-
-weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vector<node_t>>& final_routes)
-{
-    weight_t total_cost = 0.0;
-    for(const auto& route : final_routes)
-    {
-        if(route.empty()) continue; // Skip empty routes
-        weight_t curr_route_cost = cvrp.get_distance(cvrp.depot, route[0]);
-        for(size_t j = 1; j < route.size(); ++j)
-        {
-            curr_route_cost += cvrp.get_distance(route[j - 1], route[j]);
-        }
-        curr_route_cost += cvrp.get_distance(route.back(), cvrp.depot);
-        total_cost += curr_route_cost;
-    }
-    return total_cost;
-}
-
 void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& command_line_args)
 {
     size_t N = cvrp.size;
@@ -146,7 +90,7 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
                 for(node_t v = 0; v < N; v++)
                 {
                     if(v == depot) continue; // Skip self-loops
-                    weight_t distance = cvrp.get_distance(depot, v);
+                    weight_t distance = cvrp.get_distance_on_the_fly(depot, v);
                     G[u].push_back(Edge(v, distance));
                 }
                 continue; // Skip depot
@@ -163,11 +107,11 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
                 Vector vecp(cvrp.node[depot].x, cvrp.node[depot].y, cvrp.node[v].x, cvrp.node[v].y);
 
                 // Checking whether vecp is inside angle made between vec1 and vec2 at depot
-                if(!is_in_between(vec1, vec2, vecp))
+                if(vecp.is_in_between(vec1, vec2))
                 {
                     continue;
                 }
-                weight_t distance = cvrp.get_distance(depot, v);
+                weight_t distance = cvrp.get_distance_on_the_fly(depot, v);
                 // Each vertex is permiited to have at most D neighbours
                 // And these D neighbours are the closest ones
                 if(pq.size() < par.D)
@@ -237,13 +181,13 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
                         if(residue_capacity >= cvrp.node[e.v].demand)
                         {
                             current_route.push_back(e.v);
-                            curr_route_cost += cvrp.get_distance(prev_node, e.v);
+                            curr_route_cost += cvrp.get_distance_on_the_fly(prev_node, e.v);
                             residue_capacity -= cvrp.node[e.v].demand;
                             prev_node = e.v; // Update previous node to current vertex
                         }else
                         {
                             curr_routes.push_back(current_route);
-                            curr_route_cost += cvrp.get_distance(prev_node, depot);
+                            curr_route_cost += cvrp.get_distance_on_the_fly(prev_node, depot);
                             curr_total_cost += curr_route_cost;
                             current_route.clear();
                             prev_node = depot; // Reset previous node to depot
@@ -253,7 +197,7 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
                             // Start a new route
                             current_route.push_back(e.v);
                             residue_capacity -= cvrp.node[e.v].demand;
-                            curr_route_cost += cvrp.get_distance(prev_node, e.v);
+                            curr_route_cost += cvrp.get_distance_on_the_fly(prev_node, e.v);
                             prev_node = e.v; // Update previous node to current vertex
                         }
                         visited[e.v] = true;
@@ -273,7 +217,7 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
             if(!current_route.empty())
             {
                 curr_routes.push_back(current_route);
-                curr_route_cost += cvrp.get_distance(prev_node, depot); // Add cost to return to depot
+                curr_route_cost += cvrp.get_distance_on_the_fly(prev_node, depot); // Add cost to return to depot
                 curr_total_cost += curr_route_cost; // Add the cost of the last route
             }
         }
@@ -287,28 +231,34 @@ void run_our_method(const CVRP& cvrp, Parameters& par, const CommandLineArgs& co
         }
 
         // Print the routes for debugging
-        if (iter == 1 || iter == par.rho/2){
-            OUTPUT_FILE << "----------------------------------------------\n";
-            OUTPUT_FILE << "ROUTES_AFTER_ITERATION_" << iter << ":\n";
-            print_routes(final_routes, final_cost);
-            OUTPUT_FILE << "----------------------------------------------\n";
+        if (DEBUG_MODE){
+            // if(iter == 1 || iter == par.rho/2)
+            // {
+            //     OUTPUT_FILE << "----------------------------------------------\n";
+            //     OUTPUT_FILE << "ROUTES_AFTER_ITERATION_" << iter << ":\n";
+            //     print_routes(final_routes, final_cost);
+            //     OUTPUT_FILE << "----------------------------------------------\n";
+            // }
         }
     }
-    if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
-        HANDLE_ERROR("Final cost != calculated cost in loop");
-    }
+    if(DEBUG_MODE)
     {
-            OUTPUT_FILE << "----------------------------------------------\n";
-            OUTPUT_FILE << "ROUTES_AFTER_LOOP" << ":\n";
-            print_routes(final_routes, final_cost);
-            OUTPUT_FILE << "----------------------------------------------\n";
+        if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
+            HANDLE_ERROR("Final cost != calculated cost in loop");
+        }
+        OUTPUT_FILE << "----------------------------------------------\n";
+        OUTPUT_FILE << "ROUTES_AFTER_LOOP" << ":\n";
+        print_routes(final_routes, final_cost);
+        OUTPUT_FILE << "----------------------------------------------\n";
     }
+
     // Refining routes using optimizations
     {
       // using rajesh code
-      final_routes = postProcessIt(cvrp, final_routes);
-      final_cost = get_total_cost_of_routes(cvrp, final_routes);   
+      final_routes = postProcessIt(cvrp, final_routes, final_cost);
     }
+
+    if(DEBUG_MODE)
     {
         OUTPUT_FILE << "----------------------------------------------\n";
         OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
