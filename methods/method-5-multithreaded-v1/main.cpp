@@ -328,7 +328,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     // Make buckets
     std::vector<std::vector<node_t>> buckets = make_partitions(par, cvrp);
 
-    weight_t final_cost =  0.0;
+    weight_t final_cost = 0.0;
     std::vector<std::vector<int>> final_routes;
     #pragma omp parallel for 
     for(int b = 0; b < buckets.size(); b++)
@@ -366,7 +366,7 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                         std::fill(visited.begin(), visited.end(), false);
                         std::vector<node_t> current_route;
                         capacity_t residue_capacity = cvrp.capacity;
-                        node_t prev_node = depot;                       // Assuming local id of depot is also depot which is 0 
+                        node_t prev_node = depot;                    // Assuming local id of depot is also depot which is 0 
                         weight_t curr_route_cost = 0.0;
 
                         // DFS iterative
@@ -445,7 +445,6 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                             min_routes = curr_routes; // Update the best routes found so far
                         }
                     }
-
                 }
             }
         }

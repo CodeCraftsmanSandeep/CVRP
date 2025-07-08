@@ -7,6 +7,8 @@ public:
     std::string input_file_name;
     double alpha;
     int rho;
+    CommandLineArgs(const std::string& file_name, double _alpha, int _rho)
+        : input_file_name(file_name), alpha(_alpha), rho(_rho) {}
 };
 
 
@@ -14,14 +16,31 @@ class CommandLineArgs get_command_line_args(int argc, char* argv[])
 {
     if(argc != 4)
     {
-        HANDLE_ERROR(std::string("Usage: ./") + argv[0] + " input_file_path alpha rho");
+        HANDLE_ERROR(std::string("Usage: ") + argv[0] + " input_file_path --alpha=<alpha> --rho=<rho>");
     }
-    struct CommandLineArgs command_line_args;
-    command_line_args.input_file_name = argv[1];
-    command_line_args.alpha = std::stod(argv[2]);
-    command_line_args.rho = std::stoi(argv[3]);
-    
-    return command_line_args;
+    std::string input_file_name = argv[1];
+    if(input_file_name.empty()) HANDLE_ERROR("Input file name cannot be empty.");
+
+    double alpha;
+    int rho;
+    for(int i = 2; i < argc; i++)
+    {
+        std::string arg = argv[i];
+        if(arg.find("--alpha=") == 0)
+        {
+            alpha = std::stod(arg.substr(8)); // Extract the value after "--alpha="
+            if(alpha <= 0 || alpha >= 360) HANDLE_ERROR("Alpha must be in the range (0, 360).");
+        }
+        else if(arg.find("--rho=") == 0)
+        {
+            rho = std::stoi(arg.substr(6)); // Extract the value after "--rho="
+            if(rho <= 0) HANDLE_ERROR("Rho must be a positive integer.");
+        }
+        else HANDLE_ERROR("Unknown argument: " + arg);
+    }
+
+    // Create and return the CommandLineArgs object
+    return CommandLineArgs(input_file_name, alpha, rho);
 }
 
 class CVRP get_cvrp(class CommandLineArgs command_line_args)
@@ -449,7 +468,6 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
 
     OUTPUT_FILE << "----------------------------------------------\n";
 }
-
 
 
 int main(int argc, char* argv[])

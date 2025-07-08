@@ -27,12 +27,12 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
     value_lists = [param_lists[name] for name in param_names]
 
     for comb in itertools.product(*value_lists):
-        # Build value args list in the same order as param_names
-        value_args = [str(val) for val in comb if val != ""]
+        # Build named argument list in the same order as param_names
+        named_args = [f"--{name}={val}" for name, val in zip(param_names, comb) if val]
 
         # Directory naming: name-val_name2-val2 or 'noargs'
-        if any(val != "" for val in comb):
-            pairs = [f"{name}-{val}" for name, val in zip(param_names, comb) if val != ""]
+        if named_args:
+            pairs = [f"{name}-{val}" for name, val in zip(param_names, comb) if val]
             comb_dir_name = '_'.join(pairs)
         else:
             comb_dir_name = 'noargs'
@@ -41,7 +41,7 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
         os.makedirs(comb_output_dir, exist_ok=True)
 
         acc_file = os.path.join(comb_output_dir, 'accumulated_results.csv')
-        # Updated header to match solver output columns
+        # Write header to match solver output
         with open(acc_file, 'w', newline='') as csvf:
             writer = csv.writer(csvf)
             writer.writerow(['file-name', 'time_till_loop', 'total_elapsed_time', 'minCost', 'correctness'])
@@ -54,7 +54,7 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                 rel_dir = os.path.relpath(root, input_dir)
                 base_name = os.path.splitext(file)[0]
 
-                # Handle top-level inputs without './'
+                # Define output subdirectory
                 if rel_dir in ('.', os.curdir):
                     out_subdir = os.path.join(comb_output_dir, base_name)
                 else:
@@ -62,16 +62,16 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                 os.makedirs(out_subdir, exist_ok=True)
 
                 sol_file = os.path.join(out_subdir, f"{base_name}.exe_sol")
-                cmd = [exe_path, vrp_path] + value_args
+                cmd = [exe_path, vrp_path] + named_args
                 try:
                     with open(sol_file, 'w') as solf:
                         subprocess.run(cmd, stdout=solf, check=True)
-                    print(f"Solved {vrp_path} with values {value_args} -> {sol_file}")
+                    print(f"Solved {vrp_path} with args {named_args} -> {sol_file}")
                 except subprocess.CalledProcessError as e:
-                    print(f"Error on {vrp_path} with values {value_args}: {e}", file=sys.stderr)
+                    print(f"Error on {vrp_path} with args {named_args}: {e}", file=sys.stderr)
                     continue
 
-                # Parse output solution
+                # Parse and append results
                 try:
                     subprocess.run([
                         sys.executable, 'output_parser.py',
@@ -82,14 +82,12 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                     print(f"Parse error for {vrp_path}: {e}", file=sys.stderr)
                     continue
 
-                # Read parsed solution and append
                 parsed_sol = os.path.join(out_subdir, f"{base_name}.sol")
                 if os.path.exists(parsed_sol):
                     with open(parsed_sol) as pf:
                         lines = pf.readlines()
                     if len(lines) >= 2:
                         parts = [p.strip() for p in lines[1].split(',')]
-                        # Expect: [file-name, time, elapsed, minCost, correctness]
                         file_col = base_name
                         time_loop = parts[1] if len(parts) > 1 else ''
                         total_time = parts[2] if len(parts) > 2 else ''
@@ -104,13 +102,13 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Batch-run VRP solver with named argument combos (values only).")
+    parser = argparse.ArgumentParser(description="Batch-run VRP solver with named argument combos.")
     parser.add_argument('--input_dir', required=True, help='Root directory with .vrp files')
     parser.add_argument('--exe', required=True, help='Path to VRP solver executable')
     parser.add_argument('--output_dir', required=True, help='Base output directory')
     args, unknown = parser.parse_known_args()
 
-    # Build param_lists: name -> list of values
+    # Build param_lists: key -> list of values
     param_lists = {}
     for token in unknown:
         if token.startswith('--') and '=' in token:
@@ -130,4 +128,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
