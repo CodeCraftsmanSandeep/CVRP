@@ -283,6 +283,8 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     // For each bucket, find the minimum possible routes
     weight_t final_cost =  0.0;
     std::vector<std::vector<int>> final_routes;
+
+    int stack_size = 0;
     #pragma omp parallel for num_threads(buckets.size()) schedule(dynamic)
     for(int b = 0; b < buckets.size(); b++)
     {
@@ -368,10 +370,11 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     }
                     if(index == aux_graph.adj[u].size())
                     {
+                        stack_size = std::max(stack_size, (int)rec.size());
                         rec.pop(); // All neighbours of u are visited
                     }
                 }
-
+                
                 // If there are any remaining nodes in the current route, add it to routes
                 if(!current_route.empty())
                 { 
@@ -416,12 +419,12 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
             // This is case where ther are no vertices in the bucket other than depot
         }
     }
-    // {
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    //     OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
-    //     print_routes(final_routes, final_cost);
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    // }
+    {
+        OUTPUT_FILE << "----------------------------------------------\n";
+        OUTPUT_FILE << "ROUTES_AFTER_LOOP\n";
+        print_routes(final_routes, final_cost);
+        OUTPUT_FILE << "----------------------------------------------\n";
+    }
     if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
 
         HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
@@ -444,13 +447,14 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
             HANDLE_ERROR("Solution is not valid!");
         }
     }
+    OUTPUT_FILE << stack_size << "\n";
 
-    // {
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    //     OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
-    //     print_routes(final_routes, final_cost);
-    //     OUTPUT_FILE << "----------------------------------------------\n";
-    // }
+    {
+        OUTPUT_FILE << "----------------------------------------------\n";
+        OUTPUT_FILE << "ROUTES_AFTER_REFINEMENT\n";
+        print_routes(final_routes, final_cost);
+        OUTPUT_FILE << "----------------------------------------------\n";
+    }
 
     OUTPUT_FILE << "----------------------------------------------\n";
     OUTPUT_FILE << "FINAL_OUTPUT:\n";
