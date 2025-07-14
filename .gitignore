@@ -1,5 +1,10 @@
 # Ignore macOS system files
 .DS_Store
 
-# Ignore executables
-.out
+
+*.out
+*.csv
+*.exe_sol
+*.sol 
+*.html
+
