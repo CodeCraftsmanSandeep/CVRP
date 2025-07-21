@@ -27,11 +27,12 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
 
     for comb in itertools.product(*value_lists):
         # Build named argument list in the same order as param_names
-        named_args = [f"--{name}={val}" for name, val in zip(param_names, comb) if val]
+        named_args = ["--{}={}".format(name, val) for name, val in zip(param_names, comb) if val]
+
 
         # Directory naming: name-val_name2-val2 or 'noargs'
         if named_args:
-            pairs = [f"{name}-{val}" for name, val in zip(param_names, comb) if val]
+            pairs = ["{}-{}".format(name, val) for name, val in zip(param_names, comb) if val]
             comb_dir_name = '_'.join(pairs)
         else:
             comb_dir_name = 'noargs'
@@ -60,15 +61,16 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
                     out_subdir = os.path.join(comb_output_dir, rel_dir, base_name)
                 os.makedirs(out_subdir, exist_ok=True)
 
-                sol_file = os.path.join(out_subdir, f"{base_name}.exe_sol")
+                sol_file = os.path.join(out_subdir, "{}.exe_sol".format(base_name))
                 cmd = [exe_path, vrp_path] + named_args
                 try:
                     with open(sol_file, 'w') as solf:
                         subprocess.run(cmd, stdout=solf, check=True)
-                    print(f"Solved {vrp_path} with args {named_args} -> {sol_file}")
+                    print("Solved {} with args {} -> {}".format(vrp_path, named_args, sol_file))
                 except subprocess.CalledProcessError as e:
-                    print(f"Error on {vrp_path} with args {named_args}: {e}", file=sys.stderr)
+                    print("Error on {} with args {}: {}".format(vrp_path, named_args, e), file=sys.stderr)
                     continue
+
 
                 # Parse solver output
                 try:
@@ -106,6 +108,8 @@ def find_and_process(input_dir, exe_path, output_dir, param_lists):
             writer = csv.writer(csvf)
             writer.writerow(['file-name', 'time_till_loop', 'total_elapsed_time', 'minCost', 'correctness'])
             writer.writerows(rows)
+
+        print("--------results written to csv file----------")
 
 
 def main():
