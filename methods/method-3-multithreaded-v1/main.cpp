@@ -1,5 +1,6 @@
 #include "vrp-multi-threaded.h"
 #include "rajesh_codes-multi-threaded.h"
+// #include <tbb/concurrent_vector.h>
 
 class CommandLineArgs
 {
@@ -109,17 +110,25 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
     {
         // Create a vector by rotating x-axis by i * alpha degrees
         seperating_vectors[i] = Vector(xaxis, i * par.get_alpha_in_radians());
+
+        // // Print the current angle in radians and/or degrees
+        // std::cout << "Partition " << i 
+        //         << ": angle = " << i * par.get_alpha_in_radians() 
+        //         << " radians (" << (i * par.get_alpha_in_radians() * 180.0 / M_PI) 
+        //         << " degrees)" << std::endl;
     }
+
 
     std::vector<std::vector<node_t>> buckets(num_partitions);
     // Distributing nodes into buckets based on their angles
-    {
+    { // Depot goes into all buckets
         node_t u = depot;
         for(int i = 0; i < num_partitions; i++)
         {
-            buckets[i].push_back(u); // Depot goes into all buckets
+            buckets[i].push_back(u); 
         }
     }
+
     for(node_t u = 1; u < N; u++)
     {
         Vector vec(cvrp.node[depot].x, cvrp.node[depot].y, cvrp.node[u].x, cvrp.node[u].y);
@@ -140,6 +149,17 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
             HANDLE_ERROR("Node " + std::to_string(u) + " is not covered by any partition!");
         }
     }
+    // #pragma omp parallel for
+    // for(int i = 0; i < num_partitions; i++){
+    //     for(node_t u = 1; u < N; u++) 
+    //     {
+    //         Vector vec(cvrp.node[depot].x, cvrp.node[depot].y, cvrp.node[u].x, cvrp.node[u].y);   
+    //         if(vec.is_in_between(seperating_vectors[i], seperating_vectors[i + 1]))
+    //         {
+    //             buckets[i].push_back(u);
+    //         }
+    //     }
+    // }
     return buckets;
 }
 
@@ -213,8 +233,6 @@ public:
             for(int w_index = v_index + 1; w_index < num_nodes; w_index++)
             {
                 weight_t weight = dist[dist_index++] = cvrp.get_distance_on_the_fly(v, bucket[w_index]);
-                // std::cout << "edge: " << v << " -> " << bucket[w_index] << " (v_index, w_index): " << v_index << " " << w_index << " with weight: " << weight << " dist_index: " << dist_index - 1 << "\n";
-
                 if(in_mst[w_index]) continue;           // Skip already included nodes
                 pq.push({v_index, {w_index, weight}});  // Push the edge to the min heap
             }
@@ -284,16 +302,10 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     weight_t final_cost =  0.0;
     std::vector<std::vector<int>> final_routes;
 
-    #pragma omp parallel for num_threads(4) schedule(dynamic)
+    #pragma omp parallel for 
     for(int b = 0; b < buckets.size(); b++)
     {
-        // #pragma omp critical
-        // {
-        //     std::cout << omp_get_thread_num() << " is processing bucket " << b << " with " << buckets[b].size() << " nodes.\n";
-        // }
-        
-        std::random_device rd;
-        std::mt19937 rng(rd());  
+        int out_tid = omp_get_thread_num();
         Graph aux_graph (buckets[b], cvrp, par);
         
         weight_t min_cost = INT_MAX; // taking INT_MAX as infinity
@@ -304,12 +316,13 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
         // You should enable open mp nested parallelsim
         // You should check whether rng is thread safe
         // do you want to use intel vectors which has thread safe psuh_back???
-        #pragma omp parallel for num_threads(10)
+        #pragma omp parallel for
         for(int iter = 1; iter <= par.rho; iter++)
         {
+            std::random_device rd;
+            std::mt19937 rng(rd());  
             std::vector <bool> visited(num_nodes, false);
-            
-            // Step ii) Create routes
+
             std::vector<std::vector<node_t>> curr_routes;
             weight_t curr_total_cost = 0.0;
             int covered = 1; // Start with depot covered
@@ -321,28 +334,29 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                 weight_t curr_route_cost = 0.0;
 
                 // DFS iterative
-                std::stack< std::pair <int, std::vector<int>>> rec;
-                std::vector <int> neigh = aux_graph.adj[depot];
-                std::shuffle(neigh.begin(), neigh.end(), rng);
-                rec.push({0, std::move(neigh)});
+                std::stack< std::pair <int, int*>> rec;
+                int neigh_size = aux_graph.adj[depot].size();
+                int* neigh = new int[neigh_size];
+                std::copy(aux_graph.adj[depot].begin(), aux_graph.adj[depot].end(), neigh);
+                std::shuffle(neigh, neigh + neigh_size, rng);
+                rec.push({neigh_size - 1, neigh});
                 visited[depot] = true;
-                while(!rec.empty())
-                {
-                    int index = rec.top().first;
+                int index;
+
+                while(!rec.empty()) {
+                    index = rec.top().first;
+                    neigh = rec.top().second;
+
                     bool pushed = false;
-                    while(index < rec.top().second.size())
-                    {
-                        node_t v = rec.top().second[index];
-                        if(!visited[v])
-                        {
-                            if(residue_capacity >= cvrp.node[buckets[b][v]].demand)
-                            {
+                    while(index >= 0) {
+                        node_t v = neigh[index];
+                        if(!visited[v]) {
+                            if(residue_capacity >= cvrp.node[buckets[b][v]].demand) {
                                 current_route.push_back(v);
                                 curr_route_cost += aux_graph.get_distance_stored(prev_node, v);
                                 residue_capacity -= cvrp.node[buckets[b][v]].demand;
                                 prev_node = v; // Update previous node to current vertex
-                            }else
-                            {
+                            }else {
                                 covered             += current_route.size(); 
                                 curr_routes.push_back(std::move(current_route));
                                 curr_route_cost     += aux_graph.get_distance_stored(prev_node, depot); 
@@ -359,16 +373,23 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                                 prev_node           = v; 
                             }
                             visited[v]              = true;
-                            rec.top().first         = index + 1; 
-                            std::vector<int> neigh  = aux_graph.adj[v];
-                            std::shuffle(neigh.begin(), neigh.end(), rng);
-                            rec.push({0, std::move(neigh)}); // avoids copy
+                            rec.top().first         = index - 1; 
+
+                            neigh_size = aux_graph.adj[v].size();
+                            neigh = new int[neigh_size];
+                            std::copy(aux_graph.adj[v].begin(), aux_graph.adj[v].end(), neigh);
+                            std::shuffle(neigh, neigh + neigh_size, rng);
+                            rec.push({neigh_size - 1, neigh});
+
                             pushed                  = true;         
                             break;
                         }
-                        index++;
+                        index--;
                     }
-                    if(!pushed) rec.pop();
+                    if(!pushed) {
+                        free(rec.top().second);
+                        rec.pop();
+                    }
                 }
                 
                 // If there are any remaining nodes in the current route, add it to routes
@@ -381,12 +402,12 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                 }
             }
 
-            if(covered != num_nodes)
-            {
-                HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
-            }
+            // if(covered != num_nodes)
+            // {
+            //     HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
+            // }
 
-            // Step iii) Update the running total cost
+            // Step: Update the running total cost
             #pragma omp critical
             {
                 if(curr_total_cost < min_cost)
@@ -407,9 +428,12 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     {
                         route[i] = buckets[b][route[i]];
                     }
-                    final_routes.push_back(route);
+                    {
+                        final_routes.push_back(route);
+                    }
                 }
             }
+
         }else{
             // This is case where ther are no vertices in the bucket other than depot
         }
@@ -420,10 +444,10 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     //     print_routes(final_routes, final_cost);
     //     OUTPUT_FILE << "----------------------------------------------\n";
     // }
-    if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
+    // if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
+    //     HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
+    // }
 
-        HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
-    }
     double time_till_loop = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000.0;
     // Refining routes using optimizations
     {

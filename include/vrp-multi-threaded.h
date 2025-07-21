@@ -241,8 +241,7 @@ public:
     }
 
     // For checking whether this vector is in between two given vectors
-    bool is_in_between(const Vector& vec1, const Vector& vec2) const 
-    {
+    bool is_in_between(const Vector& vec1, const Vector& vec2) const {
         // Compute cross products
         cord_t cross12 = vec1.x * vec2.y - vec1.y * vec2.x; // vec1 × vec2
         cord_t cross1p = vec1.x * y - vec1.y * x; // vec1 × vecp
@@ -251,17 +250,17 @@ public:
             // vec1 and vec2 are collinear
             if (vec1.x * vec2.x + vec1.y * vec2.y >= 0) { // Same direction or one is zero vector
                 // If vecp is also collinear with them, and in the same general direction:
-                return cross1p == 0 && (vec1.x * x + vec1.y * y >= 0); // Check if vecp is also in the same direction as vec1
+                return cross1p == 0 && (vec1.x * x + vec1.y * y > 0); // Check if vecp is also in the same direction as vec1
             } else { // Opposite directions (180 degrees apart)
                 // ambigious case
-                return cross1p <= 0 && crossp2 <= 0; 
+                return cross1p < 0 && crossp2 < 0; 
             }
         }
 
         if (cross12 > 0) {
-          return cross1p >= 0 && crossp2 >= 0;  // vecp lies between vec1 and vec2 (angle < 180°)
+          return cross1p > 0 && crossp2 >= 0;  // vecp lies between vec1 and vec2 (angle < 180°)
         } else {
-          return cross1p <= 0 && crossp2 <= 0;  // reflex angle case   
+          return cross1p < 0 && crossp2 <= 0;  // reflex angle case   
         }
     }
 };
