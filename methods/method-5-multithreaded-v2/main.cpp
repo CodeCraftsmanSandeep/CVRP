@@ -95,16 +95,14 @@ public:
 Parameters get_tunable_parameters(const CommandLineArgs& command_line_args)
 {
     Parameters par;
-    par.set_alpha_in_degrees(command_line_args.alpha);  // 5, 10, 25, 50, 75
-    par.set_lambda(command_line_args.lambda);            // 1, 6, 12
-    par.set_rho(command_line_args.rho);                  // 1e3, 1e4
+    par.set_alpha_in_degrees(command_line_args.alpha);    // 5, 10, 25, 50, 75
+    par.set_lambda(command_line_args.lambda);             // 1, 6, 12
+    par.set_rho(command_line_args.rho);                   // 1e3, 1e4
     return par;
 }
 
 std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const CVRP& cvrp)
 {
-    
-
     size_t N = cvrp.size;
     node_t depot = cvrp.depot;
 
