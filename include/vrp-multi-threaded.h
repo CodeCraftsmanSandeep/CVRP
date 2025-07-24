@@ -281,3 +281,103 @@ weight_t get_total_cost_of_routes(const CVRP& cvrp, const std::vector<std::vecto
     }
     return total_cost;
 }
+
+template <typename T>
+class MinHeap {
+  int   last_index;
+  T*    vec;
+  int*  vertex_to_index_map;
+  
+  void swap(T& left, T& right) {
+    T storage = left; 
+    left = right;
+    right = storage;
+  }
+public:
+  MinHeap(const int num_nodes){
+    last_index          = num_nodes - 1;
+    vec                 = new T[num_nodes];
+    vertex_to_index_map = new int[num_nodes];
+
+    for(int i = 0; i < num_nodes; i++)
+    {
+      vertex_to_index_map[i] = i;
+      vec[i].u      = -1;
+      vec[i].v      = i;
+      vec[i].weight = INT_MAX;
+    }
+  }
+
+  void heapify_up(int index) {
+    while(index > 0) {
+      int parent = (index - 1) >> 1;
+      if(vec[parent].weight > vec[index].weight) {
+        T storage = vec[parent];
+        vec[parent] = vec[index];
+        vec[index] = storage;
+
+        vertex_to_index_map[vec[index].v] = index;
+        index = parent;
+      } else {
+        vertex_to_index_map[vec[index].v] = index;
+        break;
+      }
+    }
+  }
+
+  void DecreaseKey(const T& node) {
+    int vertex = node.v;
+    int index  = vertex_to_index_map[vertex];
+    if(index > last_index) {
+      HANDLE_ERROR("The vertex is not there in heap");
+    }
+    if(vec[index].weight <= node.weight) return;
+    vec[index].weight = node.weight;
+    vec[index].u      = node.u;
+
+    heapify_up(index);
+  }
+
+  void heapify_down(int index) {
+    int left, right, small_weight_index;
+    while (index <= last_index) {
+      left                = (index << 1) + 1;
+      right               = (left) + 1;
+      small_weight_index  = index;
+
+      if (left <= last_index && vec[left].weight < vec[small_weight_index].weight)   small_weight_index = left;
+      if (right <= last_index && vec[right].weight < vec[small_weight_index].weight) small_weight_index = right;
+
+      if (small_weight_index != index) {
+        T storage                         = vec[small_weight_index];
+        vec[small_weight_index]           = vec[index];
+        vec[index]                        = storage;
+
+        vertex_to_index_map[vec[index].v] = index;
+        index                             = small_weight_index;
+      } else {
+        vertex_to_index_map[vec[index].v] = index;
+        break;
+      }
+    }
+  }
+
+  T pop() {
+    int vertex = vec[0].v;
+    swap(vec[0], vec[last_index]);
+    vertex_to_index_map[vec[last_index].v] = last_index;
+    last_index--;
+
+    heapify_down(0);
+    return vec[last_index + 1];
+  }
+
+  bool empty() {
+    return last_index < 0;
+  }
+
+  ~MinHeap() {
+    delete[] vec;
+    delete[] vertex_to_index_map;
+  }
+};

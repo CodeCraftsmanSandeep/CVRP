@@ -184,19 +184,19 @@ postProcessIt(const CVRP &vrp, const std::vector<std::vector<node_t>> &final_rou
     }
     // finding the cost of preprocessed_route
     weight_t preprocessed_route_cost = 0.0;
-    preprocessed_route_cost += vrp.get_distance_on_the_fly(vrp.depot, preprocessed_route[0]);
+    preprocessed_route_cost   += vrp.get_distance_on_the_fly(vrp.depot, preprocessed_route[0]);
     for(int i = 1; i < sz; i++){
       preprocessed_route_cost += vrp.get_distance_on_the_fly(preprocessed_route[i-1], preprocessed_route[i]);
     }
-    preprocessed_route_cost += vrp.get_distance_on_the_fly(preprocessed_route[sz-1], vrp.depot);
+    preprocessed_route_cost   += vrp.get_distance_on_the_fly(preprocessed_route[sz-1], vrp.depot);
 
     // finding the cost of postprocessed_route2
     weight_t postprocessed_route2_cost = 0.0;
-    postprocessed_route2_cost += vrp.get_distance_on_the_fly(vrp.depot, postprocessed_route2[0]);  // computing distance of the first point in the route with the depot.
+    postprocessed_route2_cost   += vrp.get_distance_on_the_fly(vrp.depot, postprocessed_route2[0]);  // computing distance of the first point in the route with the depot.
     for (unsigned jj = 1; jj < sz2; ++jj) {
       postprocessed_route2_cost += vrp.get_distance_on_the_fly(postprocessed_route2[jj - 1], postprocessed_route2[jj]);
     }
-    postprocessed_route2_cost += vrp.get_distance_on_the_fly(postprocessed_route2[sz2 - 1], vrp.depot);
+    postprocessed_route2_cost   += vrp.get_distance_on_the_fly(postprocessed_route2[sz2 - 1], vrp.depot);
 
     // finding the cost of postprocessed_route3
     weight_t postprocessed_route3_cost = 0.0;
