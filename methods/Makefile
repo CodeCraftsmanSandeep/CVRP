@@ -13,8 +13,17 @@ METHOD2_OUT = method-2/exe.out
 METHOD3_SRC = method-3/main.cpp
 METHOD3_OUT = method-3/exe.out
 
-METHOD3_MT_SRC = method-3-multithreaded-v1/main.cpp
-METHOD3_MT_OUT = method-3-multithreaded-v1/exe.out
+METHOD3_MT_V1_SRC = method-3-multithreaded-v1/main.cpp
+METHOD3_MT_V1_OUT = method-3-multithreaded-v1/exe.out
+
+METHOD3_MT_V2_SRC = method-3-multithreaded-v2/main.cpp
+METHOD3_MT_V2_OUT = method-3-multithreaded-v2/exe.out
+
+METHOD3_MT_V3_SRC = method-3-multithreaded-v3/main.cpp
+METHOD3_MT_V3_OUT = method-3-multithreaded-v3/exe.out
+
+METHOD3_MT_V4_SRC = method-3-multithreaded-v4/main.cpp
+METHOD3_MT_V4_OUT = method-3-multithreaded-v4/exe.out
 
 METHOD4_SRC = method-4/main.cpp
 METHOD4_OUT = method-4/exe.out
@@ -39,8 +48,20 @@ method-3: $(METHOD3_OUT)
 $(METHOD3_OUT): $(METHOD3_SRC)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-method-3-multithreaded-v1: $(METHOD3_MT_OUT)
-$(METHOD3_MT_OUT): $(METHOD3_MT_SRC)
+method-3-multithreaded-v1: $(METHOD3_MT_V1_OUT)
+$(METHOD3_MT_V1_OUT): $(METHOD3_MT_V1_SRC)
+	$(CXX) $(OMPFLAGS) $< -o $@
+
+method-3-multithreaded-v2: $(METHOD3_MT_V2_OUT)
+$(METHOD3_MT_V2_OUT): $(METHOD3_MT_V2_SRC)
+	$(CXX) $(OMPFLAGS) $< -o $@
+
+method-3-multithreaded-v3: $(METHOD3_MT_V3_OUT)
+$(METHOD3_MT_V3_OUT): $(METHOD3_MT_V3_SRC)
+	$(CXX) $(OMPFLAGS) $< -o $@
+
+method-3-multithreaded-v4: $(METHOD3_MT_V4_OUT)
+$(METHOD3_MT_V4_OUT): $(METHOD3_MT_V4_SRC)
 	$(CXX) $(OMPFLAGS) $< -o $@
 
 method-4: $(METHOD4_OUT)
@@ -55,28 +76,8 @@ method-5-multithreaded-v1: $(METHOD5_MT_OUT)
 $(METHOD5_MT_OUT): $(METHOD5_MT_SRC)
 	$(CXX) $(OMPFLAGS) $< -o $@
 
-run-method-1: method-1
-	./$(METHOD1_OUT)
-
-run-method-2: method-2
-	./$(METHOD2_OUT)
-
-run-method-3: method-3
-	./$(METHOD3_OUT)
-
-run-method-3-multithreaded: method-3-multithreaded-v1
-	./$(METHOD3_MT_OUT)
-
-run-method-4: method-4
-	./$(METHOD4_OUT)
-
-run-method-5: method-5
-	./$(METHOD5_OUT)
-
-run-method-5-multithreaded: method-5-multithreaded-v1
-	./$(METHOD5_MT_OUT)
-
 clean:
 	rm -f $(METHOD1_OUT) $(METHOD2_OUT) $(METHOD3_OUT) \
-	      $(METHOD3_MT_OUT) $(METHOD4_OUT) $(METHOD5_OUT) \
-	      $(METHOD5_MT_OUT)
+		  $(METHOD3_MT_V1_OUT) $(METHOD3_MT_V2_OUT) $(METHOD3_MT_V3_OUT) \ 
+	      $(METHOD4_OUT) $(METHOD5_OUT) \
+	      $(METHOD5_MT_OUT) 

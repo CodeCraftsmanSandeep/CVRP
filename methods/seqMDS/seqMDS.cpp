@@ -734,7 +734,7 @@ int main(int argc, char *argv[]) {
   weight_t min_cost_after_one_iteration = minCost;
   auto time_till_one_iteration = (double)((chrono::high_resolution_clock::now() - start).count() * 1.E-9);
 
-  for (int i = 1; i < 100; ++i) {
+  for (int i = 1; i < 5000; ++i) {
     // RANDOMIZE THE ADJ LIST OF MST
     for (auto &list : mstG) {
       std::shuffle(list.begin(), list.end(), std::default_random_engine(rand()));

@@ -1,5 +1,6 @@
 #include "vrp-multi-threaded.h"
 #include "rajesh_codes-multi-threaded.h"
+// #include <tbb/concurrent_vector.h>
 
 class CommandLineArgs
 {
@@ -14,8 +15,7 @@ public:
 
 class CommandLineArgs get_command_line_args(int argc, char* argv[])
 {
-    if(argc != 4)
-    {
+    if(argc != 4) {
         HANDLE_ERROR(std::string("Usage: ") + argv[0] + " input_file_path --alpha=<alpha> --rho=<rho>");
     }
     std::string input_file_name = argv[1];
@@ -109,17 +109,25 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
     {
         // Create a vector by rotating x-axis by i * alpha degrees
         seperating_vectors[i] = Vector(xaxis, i * par.get_alpha_in_radians());
+
+        // // Print the current angle in radians and/or degrees
+        // std::cout << "Partition " << i 
+        //         << ": angle = " << i * par.get_alpha_in_radians() 
+        //         << " radians (" << (i * par.get_alpha_in_radians() * 180.0 / M_PI) 
+        //         << " degrees)" << std::endl;
     }
+
 
     std::vector<std::vector<node_t>> buckets(num_partitions);
     // Distributing nodes into buckets based on their angles
-    {
+    { // Depot goes into all buckets
         node_t u = depot;
         for(int i = 0; i < num_partitions; i++)
         {
-            buckets[i].push_back(u); // Depot goes into all buckets
+            buckets[i].push_back(u); 
         }
     }
+
     for(node_t u = 1; u < N; u++)
     {
         Vector vec(cvrp.node[depot].x, cvrp.node[depot].y, cvrp.node[u].x, cvrp.node[u].y);
@@ -140,6 +148,17 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
             HANDLE_ERROR("Node " + std::to_string(u) + " is not covered by any partition!");
         }
     }
+    // #pragma omp parallel for
+    // for(int i = 0; i < num_partitions; i++){
+    //     for(node_t u = 1; u < N; u++) 
+    //     {
+    //         Vector vec(cvrp.node[depot].x, cvrp.node[depot].y, cvrp.node[u].x, cvrp.node[u].y);   
+    //         if(vec.is_in_between(seperating_vectors[i], seperating_vectors[i + 1]))
+    //         {
+    //             buckets[i].push_back(u);
+    //         }
+    //     }
+    // }
     return buckets;
 }
 
@@ -213,8 +232,6 @@ public:
             for(int w_index = v_index + 1; w_index < num_nodes; w_index++)
             {
                 weight_t weight = dist[dist_index++] = cvrp.get_distance_on_the_fly(v, bucket[w_index]);
-                // std::cout << "edge: " << v << " -> " << bucket[w_index] << " (v_index, w_index): " << v_index << " " << w_index << " with weight: " << weight << " dist_index: " << dist_index - 1 << "\n";
-
                 if(in_mst[w_index]) continue;           // Skip already included nodes
                 pq.push({v_index, {w_index, weight}});  // Push the edge to the min heap
             }
@@ -271,7 +288,7 @@ weight_t Graph::get_distance_stored(node_t u, node_t v) const
 
 void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineArgs& command_line_args)
 {
-    // omp_set_nested(1); // Enable nested parallelism
+    omp_set_nested(2); // Enable nested parallelism
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     const size_t N = cvrp.size;
@@ -284,112 +301,112 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     weight_t final_cost =  0.0;
     std::vector<std::vector<int>> final_routes;
 
-    #pragma omp parallel for num_threads(buckets.size()) schedule(dynamic)
+    #pragma omp parallel for 
     for(int b = 0; b < buckets.size(); b++)
     {
-        // #pragma omp critical
-        // {
-        //     std::cout << omp_get_thread_num() << " is processing bucket " << b << " with " << buckets[b].size() << " nodes.\n";
-        // }
-        
-        std::random_device rd;
-        std::mt19937 rng(rd());  
+        int out_tid = omp_get_thread_num();
         Graph aux_graph (buckets[b], cvrp, par);
         
         weight_t min_cost = INT_MAX; // taking INT_MAX as infinity
         std::vector <std::vector<int>> min_routes;
-        int num_nodes = buckets[b].size();
-        std::vector <bool> visited(num_nodes, false);
+        const int num_nodes = buckets[b].size();
 
         // Search in solution space using randomization
         // You should enable open mp nested parallelsim
         // You should check whether rng is thread safe
-        // do you want to use intel vectors which has thread psuh_back???
-        // #pragma omp parallel for private(aux_graph, visited)
+        // do you want to use intel vectors which has thread safe psuh_back???
+        #pragma omp parallel for
         for(int iter = 1; iter <= par.rho; iter++)
         {
-            // i) Randomize adjacency list
-            for(int u = 0; u < num_nodes; u++)
-            {
-                std::shuffle(aux_graph.adj[u].begin(), aux_graph.adj[u].end(), rng);
-            }
+            std::random_device rd;
+            std::mt19937 rng(rd());  
+            std::vector <bool> visited(num_nodes, false);
 
-            // Step ii) Create routes
             std::vector<std::vector<node_t>> curr_routes;
             weight_t curr_total_cost = 0.0;
             int covered = 1; // Start with depot covered
             {   
-                std::fill(visited.begin(), visited.begin() + num_nodes, false);
                 std::vector<node_t> current_route;
                 capacity_t residue_capacity = cvrp.capacity;
                 node_t prev_node = depot;                       // Assuming local id of depot is also depot which is 0 
                 weight_t curr_route_cost = 0.0;
 
                 // DFS iterative
-                std::stack< std::pair <node_t, int>> rec;
-                rec.push({depot, 0}); // Start from depot
+                std::stack< std::pair <int, int*>> rec;
+                int neigh_size = aux_graph.adj[depot].size();
+                int* neigh = new int[neigh_size];
+                std::copy(aux_graph.adj[depot].begin(), aux_graph.adj[depot].end(), neigh);
+                std::shuffle(neigh, neigh + neigh_size, rng);
+                rec.push({neigh_size - 1, neigh});
                 visited[depot] = true;
-                while(!rec.empty())
-                {
-                    auto [u, index] = rec.top();
-                    while(index < aux_graph.adj[u].size())
-                    {
-                        node_t v = aux_graph.adj[u][index];
-                        if(!visited[v])
-                        {
-                            if(residue_capacity >= cvrp.node[buckets[b][v]].demand)
-                            {
+                int index;
+
+                while(!rec.empty()) {
+                    index = rec.top().first;
+                    neigh = rec.top().second;
+
+                    bool pushed = false;
+                    while(index >= 0) {
+                        node_t v = neigh[index];
+                        if(!visited[v]) {
+                            if(residue_capacity >= cvrp.node[buckets[b][v]].demand) {
                                 current_route.push_back(v);
                                 curr_route_cost += aux_graph.get_distance_stored(prev_node, v);
                                 residue_capacity -= cvrp.node[buckets[b][v]].demand;
                                 prev_node = v; // Update previous node to current vertex
-                            }else
-                            {
-                                covered += current_route.size(); // Count the number of nodes in the current route
-                                curr_routes.push_back(current_route);
-                                curr_route_cost += aux_graph.get_distance_stored(prev_node, depot); // Add cost to return to depot
-                                curr_total_cost += curr_route_cost;
+                            }else {
+                                covered             += current_route.size(); 
+                                curr_routes.push_back(std::move(current_route));
+                                curr_route_cost     += aux_graph.get_distance_stored(prev_node, depot); 
+                                curr_total_cost     += curr_route_cost;
                                 current_route.clear();
-                                prev_node = depot; // Reset previous node to depot
-                                curr_route_cost = 0.0; // Reset current route cost
-                                residue_capacity = cvrp.capacity; // Reset residue capacity
+                                prev_node           = depot; 
+                                curr_route_cost     = 0.0; 
+                                residue_capacity    = cvrp.capacity; 
                 
                                 // Start a new route
                                 current_route.push_back(v);
-                                residue_capacity -= cvrp.node[buckets[b][v]].demand;
-                                curr_route_cost += aux_graph.get_distance_stored(prev_node, v);
-                                prev_node = v; // Update previous node to current vertex
+                                residue_capacity    -= cvrp.node[buckets[b][v]].demand;
+                                curr_route_cost     += aux_graph.get_distance_stored(prev_node, v);
+                                prev_node           = v; 
                             }
-                            visited[v] = true;
-                            rec.top().second = index + 1; // Update index for next iteration
-                            rec.push({v, 0});             // Push next vertex to stack
+                            visited[v]              = true;
+                            rec.top().first         = index - 1; 
+
+                            neigh_size = aux_graph.adj[v].size();
+                            neigh = new int[neigh_size];
+                            std::copy(aux_graph.adj[v].begin(), aux_graph.adj[v].end(), neigh);
+                            std::shuffle(neigh, neigh + neigh_size, rng);
+                            rec.push({neigh_size - 1, neigh});
+
+                            pushed                  = true;         
                             break;
                         }
-                        index++;
+                        index--;
                     }
-                    if(index == aux_graph.adj[u].size())
-                    {
-                        rec.pop(); // All neighbours of u are visited
+                    if(!pushed) {
+                        free(rec.top().second);
+                        rec.pop();
                     }
                 }
                 
                 // If there are any remaining nodes in the current route, add it to routes
                 if(!current_route.empty())
                 { 
-                    covered += current_route.size(); // Count the number of nodes in the last route
+                    covered         += current_route.size(); 
                     curr_routes.push_back(current_route);
-                    curr_route_cost += aux_graph.get_distance_stored(prev_node, depot); // Add cost to return to depot
-                    curr_total_cost += curr_route_cost; // Add the cost of the last route
+                    curr_route_cost += aux_graph.get_distance_stored(prev_node, depot); 
+                    curr_total_cost += curr_route_cost; 
                 }
             }
 
-            if(covered != num_nodes)
-            {
-                HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
-            }
+            // if(covered != num_nodes)
+            // {
+            //     HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
+            // }
 
-            // Step iii) Update the running total cost
-            // #pragma omp critical
+            // Step: Update the running total cost
+            #pragma omp critical
             {
                 if(curr_total_cost < min_cost)
                 {
@@ -397,7 +414,6 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     min_routes = curr_routes; // Update the best routes found so far
                 }
             }
-
         }
 
         if(min_routes.size() != 0)
@@ -410,9 +426,12 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                     {
                         route[i] = buckets[b][route[i]];
                     }
-                    final_routes.push_back(route);
+                    {
+                        final_routes.push_back(route);
+                    }
                 }
             }
+
         }else{
             // This is case where ther are no vertices in the bucket other than depot
         }
@@ -424,9 +443,9 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
     //     OUTPUT_FILE << "----------------------------------------------\n";
     // }
     // if (std::abs(final_cost - get_total_cost_of_routes(cvrp, final_routes)) > 1e-3) {
-
     //     HANDLE_ERROR("Final cost != calculated cost in loop! Final cost: " + std::to_string(final_cost) + ", Calculated cost: " + std::to_string(get_total_cost_of_routes(cvrp, final_routes)));
     // }
+
     double time_till_loop = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000.0;
     // Refining routes using optimizations
     {
