@@ -158,16 +158,16 @@ std::vector <std::vector<node_t>> make_partitions(const Parameters& par, const C
     //             buckets[i].push_back(u);
     //         }
     //     }
-    // }
+    // } 
     return buckets;
 }
 
 struct MinHeapNode {
     int u;      // already present in MST
     int v;      // going to be present in MST
-    int weight; // weight of the edge
+    weight_t weight; // weight of the edge
 
-    MinHeapNode (int _u, int _v, int _weight): u(_u), v(_v), weight(_weight) {}
+    MinHeapNode (int _u, int _v, weight_t _weight): u(_u), v(_v), weight(_weight) {}
     MinHeapNode () {}
     ~MinHeapNode() {}
 };
@@ -189,8 +189,7 @@ void create_aux_graph(std::vector <std::vector<int>>& adj, std::vector <int>& de
     int v_index;
     weight_t weight;
 
-    for(v_index = 0; v_index < num_nodes; v_index++) {
-        if(u_index == v_index) continue;
+    for(v_index = 1; v_index < num_nodes; v_index++) {
         min_heap.DecreaseKey(MinHeapNode(u_index, v_index, cvrp.get_distance_on_the_fly(bucket[u_index], bucket[v_index]))); 
     }
 
@@ -200,9 +199,7 @@ void create_aux_graph(std::vector <std::vector<int>>& adj, std::vector <int>& de
         u_index     = min_node.u;                                                   // Index of the node in the bucket
         v_index     = min_node.v;                                                   // Index of the adjacent node in the bucket
         weight      = min_node.weight;                                              // Weight of the edge
-        if(in_mst[v_index]) continue;                                               // Skip if already in MST
-        
-        in_mst[v_index] = true;                                                     // Mark this node as included in MST
+
         completed++;
 
         // Add the edge to the graph
@@ -216,7 +213,6 @@ void create_aux_graph(std::vector <std::vector<int>>& adj, std::vector <int>& de
 
         for(int w_index = 0; w_index < num_nodes; w_index++) {
             int w = bucket[w_index];
-            if(in_mst[w_index]) continue;                                           // Skip already included nodes 
             min_heap.DecreaseKey(MinHeapNode(v_index, w_index, cvrp.get_distance_on_the_fly(v, w)));
         }
     }
@@ -340,10 +336,10 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
                 curr_total_cost += curr_route_cost; 
             }
 
-            // if(covered != num_nodes)
-            // {
-            //     HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
-            // }
+            if(covered != num_nodes)
+            {
+                HANDLE_ERROR("Not all nodes are covered in the bucket " + std::to_string(b) + "! Covered: " + std::to_string(covered) + ", Expected: " + std::to_string(num_nodes));
+            }
 
             // Step: Update the running total cost
             #pragma omp critical
@@ -420,7 +416,6 @@ void run_our_method(const CVRP& cvrp, const Parameters& par, const CommandLineAr
 
     OUTPUT_FILE << "----------------------------------------------\n";
 }
-
 
 int main(int argc, char* argv[])
 {
